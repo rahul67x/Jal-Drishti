@@ -1,16 +1,14 @@
 import React, { useState } from 'react';
 import {
   Trees,
-  Leaf,
   Droplets,
-  CloudRain,
   MapPin,
-  Camera,
   Layers,
   ChevronDown,
 } from 'lucide-react';
 import { studyAreas, defaultStudyArea } from '../../data/studyAreas';
 import type { StudyArea } from '../../data/studyAreas';
+import { realGisMetrics } from '../../data/realMetrics';
 import MetricCard from './MetricCard';
 import AnalyticsTabs from './AnalyticsTabs';
 import type { AnalyticsTabId } from './AnalyticsTabs';
@@ -129,106 +127,106 @@ export const AnalyticsDashboard: React.FC = () => {
           <AnalyticsTabs activeTab={activeTab} onSelectTab={handleTabSelect} />
           <div className="text-xs text-[#6F6F6F] flex items-center gap-2">
             <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
-            <span>Sentinel-2 Multispectral Feed: Active</span>
+            <span>Source: QGIS raster analysis (Sentinel-2, 10m, EPSG:32643)</span>
           </div>
         </div>
 
-        {/* 6 Clickable Analytics Metric Cards */}
+        {/* 6 Clickable Analytics Metric Cards — Powered by Real GIS Analysis */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
           <MetricCard
             icon={Trees}
             iconColor="#183A2A"
             iconBg="#EEF5EC"
-            label="Tree Cover"
-            value="68.4 km²"
-            subtext="+4.8% from baseline"
-            badge={{ text: '+4.8%', type: 'positive' }}
+            label="Vegetation Area"
+            value={realGisMetrics.vegetation.display.value}
+            subtext={realGisMetrics.vegetation.display.subtext}
+            badge={realGisMetrics.vegetation.display.badge}
             isActive={layers.treeCover}
             onClick={() => {
               toggleLayer('treeCover');
               setActiveTab('vegetation');
             }}
-            hint="Click to toggle Tree Cover overlay"
-          />
-
-          <MetricCard
-            icon={Leaf}
-            iconColor="#35624B"
-            iconBg="#EEF5EC"
-            label="Average NDVI"
-            value="0.62"
-            subtext="+7.3% seasonal gain"
-            badge={{ text: 'Healthy', type: 'positive' }}
-            isActive={layers.ndvi}
-            onClick={() => {
-              toggleLayer('ndvi');
-              setActiveTab('vegetation');
-            }}
-            hint="Click to toggle NDVI Analysis overlay"
+            hint="2023: 3,705.66 ha → 2026: 3,651.68 ha (Net: -53.98 ha / -1.46%)"
           />
 
           <MetricCard
             icon={Droplets}
             iconColor="#4D8FA8"
             iconBg="#DCEEF2"
-            label="Water Bodies"
-            value="12 Active"
-            subtext="+18% seasonal coverage"
-            badge={{ text: '+18%', type: 'info' }}
+            label="Water Area"
+            value={realGisMetrics.water.display.value}
+            subtext={realGisMetrics.water.display.subtext}
+            badge={realGisMetrics.water.display.badge}
             isActive={layers.waterBodies}
             onClick={() => {
               toggleLayer('waterBodies');
               setActiveTab('water');
             }}
-            hint="Click to toggle Water Bodies overlay"
+            hint="2023: 12.53 ha → 2026: 3.03 ha (Net: -9.50 ha / -75.82%)"
           />
 
           <MetricCard
-            icon={CloudRain}
-            iconColor="#4D8FA8"
-            iconBg="#DCEEF2"
-            label="Soil Moisture"
-            value="42%"
-            subtext="Moderate retention index"
-            badge={{ text: '42%', type: 'neutral' }}
-            isActive={layers.drainage}
+            icon={Droplets}
+            iconColor="#E11D48"
+            iconBg="#FFE4E6"
+            label="Water Loss"
+            value={realGisMetrics.waterChange.loss.display.value}
+            subtext={realGisMetrics.waterChange.loss.display.subtext}
+            badge={realGisMetrics.waterChange.loss.display.badge}
+            isActive={layers.changeDetection}
             onClick={() => {
-              toggleLayer('drainage');
-              setActiveTab('water');
+              toggleLayer('changeDetection');
+              setActiveTab('change');
             }}
-            hint="Click to highlight drainage flow channels"
+            hint="Water loss raster pixel count: 954 px (95,400 m² = 9.54 ha)"
+          />
+
+          <MetricCard
+            icon={Droplets}
+            iconColor="#35624B"
+            iconBg="#EEF5EC"
+            label="Water Gain"
+            value={realGisMetrics.waterChange.gain.display.value}
+            subtext={realGisMetrics.waterChange.gain.display.subtext}
+            badge={realGisMetrics.waterChange.gain.display.badge}
+            isActive={layers.changeDetection}
+            onClick={() => {
+              toggleLayer('changeDetection');
+              setActiveTab('change');
+            }}
+            hint="Water gain raster pixel count: 4 px (400 m² = 0.04 ha)"
           />
 
           <MetricCard
             icon={Layers}
             iconColor="#D97706"
             iconBg="#FEF3C7"
-            label="Restoration"
-            value="34.2 ha"
-            subtext="Rehabilitated micro-catchment"
-            badge={{ text: 'Improved', type: 'positive' }}
+            label="Net Water Change"
+            value={realGisMetrics.waterChange.net.display.value}
+            subtext={realGisMetrics.waterChange.net.display.subtext}
+            badge={realGisMetrics.waterChange.net.display.badge}
             isActive={layers.changeDetection}
             onClick={() => {
               toggleLayer('changeDetection');
               setActiveTab('change');
             }}
-            hint="Click to toggle Change Detection mode"
+            hint="Net change: 0.04 ha gain - 9.54 ha loss = -9.50 ha"
           />
 
           <MetricCard
-            icon={Camera}
-            iconColor="#E11D48"
-            iconBg="#FFE4E6"
-            label="Field Data"
-            value="1,248"
-            subtext="36 active GPS stations"
-            badge={{ text: '36 pts', type: 'info' }}
-            isActive={layers.observations}
+            icon={MapPin}
+            iconColor="#183A2A"
+            iconBg="#EEF5EC"
+            label="LULC Analysis Area"
+            value={realGisMetrics.lulc2026.display.value}
+            subtext={realGisMetrics.lulc2026.display.subtext}
+            badge={realGisMetrics.lulc2026.display.badge}
+            isActive={layers.boundary}
             onClick={() => {
-              toggleLayer('observations');
-              setActiveTab('field');
+              toggleLayer('boundary');
+              setActiveTab('overview');
             }}
-            hint="Click to toggle Geo-tagged Field Observation markers"
+            hint="3,721 ha total analyzed extent (372,099 pixels @ 10m × 10m)"
           />
         </div>
 

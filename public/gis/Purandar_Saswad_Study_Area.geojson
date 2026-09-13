@@ -1,0 +1,8 @@
+{
+"type": "FeatureCollection",
+"name": "Purandar_Saswad_Study_Area",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{"type":"Feature","properties":{"fid":1,"MINX":391180.0,"MINY":2021530.0,"MAXX":397290.0,"MAXY":2027620.0,"CNTX":394235.0,"CNTY":2024575.0,"AREA":37209900.0,"PERIM":24400.0,"HEIGHT":6090.0,"WIDTH":6110.0},"geometry":{"type":"Polygon","coordinates":[[[73.970468491416099,18.280535114462015],[74.028268086556309,18.280837623172783],[74.027961029505192,18.335873214679406],[73.970143177947492,18.335569732393353],[73.970468491416099,18.280535114462015]]]}}
+]
+}
