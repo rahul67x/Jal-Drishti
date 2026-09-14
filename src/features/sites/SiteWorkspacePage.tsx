@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useLocation } from 'react-router-dom';
 import { ArrowLeft, MapPin, Ruler, Globe2, CheckCircle2, AlertTriangle, Settings } from 'lucide-react';
 import { useSite, useSiteMetrics } from './useSites';
 import { Spinner, ErrorState, EmptyState } from '../../components/ui/States';
@@ -18,7 +18,12 @@ import EditSiteDialog from './EditSiteDialog';
 export const SiteWorkspacePage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const { canEdit } = useAuth();
+  const location = useLocation();
   const [editOpen, setEditOpen] = React.useState(false);
+  // The Hero's "Watch the Analysis" button navigates here with this flag set.
+  const [tourOpen, setTourOpen] = React.useState(
+    Boolean((location.state as { startTour?: boolean } | null)?.startTour)
+  );
   const siteQuery = useSite(slug);
   const metricsQuery = useSiteMetrics(slug);
 
@@ -73,7 +78,7 @@ export const SiteWorkspacePage: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#F7F9F6]">
       {/* Site header */}
-      <header className="bg-white border-b border-black/8">
+      <header className="bg-white border-b border-black/8" data-tour="site-header">
         <div className="max-w-7xl mx-auto px-4 sm:px-8 lg:px-16 py-8">
           <div className="flex items-center justify-between gap-4 mb-3">
             <Link
@@ -156,6 +161,7 @@ export const SiteWorkspacePage: React.FC = () => {
           */}
           {metrics && crossCheck !== null && crossCheck !== undefined && (
             <div
+              data-tour="cross-check"
               className={`mt-5 inline-flex items-start gap-2 px-3.5 py-2 rounded-xl text-[11px] border ${
                 crossCheck
                   ? 'bg-emerald-50/70 border-emerald-200 text-emerald-900'
@@ -189,7 +195,12 @@ export const SiteWorkspacePage: React.FC = () => {
         </div>
       </header>
 
-      <AnalyticsDashboard siteSlug={site.slug} showHeading={false} />
+      <AnalyticsDashboard
+        siteSlug={site.slug}
+        showHeading={false}
+        tourOpen={tourOpen}
+        onTourClose={() => setTourOpen(false)}
+      />
 
       {editOpen && <EditSiteDialog site={site} onClose={() => setEditOpen(false)} />}
     </div>

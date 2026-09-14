@@ -24,8 +24,13 @@ import SatelliteGallery from '../../features/satellite/SatelliteGallery';
 // every visitor, including on the landing page, for a tab most never open.
 const ReportPanel = lazy(() => import('../../features/reports/ReportPanel'));
 import { formatHa, formatKm2, formatPct, formatSignedHa, formatCount } from '../../lib/format';
+import TourOverlay from '../../features/tour/TourOverlay';
+import type { TourStep } from '../../features/tour/steps';
 
 interface AnalyticsDashboardProps {
+  /** Runs the guided tour. The host owns the flag so the Hero button can set it. */
+  tourOpen?: boolean;
+  onTourClose?: () => void;
   /** Which site to show. Falls back to the first published site when omitted. */
   siteSlug?: string;
   /** The workspace page renders its own header, so it hides this one. */
@@ -44,6 +49,8 @@ interface AnalyticsDashboardProps {
 export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
   siteSlug,
   showHeading = true,
+  tourOpen = false,
+  onTourClose,
 }) => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<AnalyticsTabId>('overview');
@@ -87,6 +94,18 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
 
   const patchLayers = (patch: Partial<LayerState>) =>
     setLayers((prev) => ({ ...prev, ...patch }));
+
+  /**
+   * Applies one tour step.
+   *
+   * Goes through the same state setters a click would, so the tour cannot fall
+   * out of step with the UI: if a tab or layer key is removed, this stops
+   * compiling rather than silently doing nothing.
+   */
+  const applyTourStep = (step: TourStep) => {
+    if (step.apply?.tab) setActiveTab(step.apply.tab);
+    if (step.apply?.layers) patchLayers(step.apply.layers);
+  };
 
   const handleTabSelect = (tab: AnalyticsTabId) => {
     setActiveTab(tab);
@@ -334,7 +353,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
             {metricsQuery.isLoading ? (
               <Spinner label="Computing metrics" />
             ) : cards.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
+              <div data-tour="metric-cards" className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
                 {cards.map((card) => (
                   <MetricCard key={card.label} {...card} />
                 ))}
@@ -347,22 +366,24 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
             )}
 
             {activeTab === 'report' ? (
+              <div data-tour="report-panel">
               <Suspense fallback={<Spinner label="Loading report builder" />}>
                 <ReportPanel site={site} />
               </Suspense>
+              </div>
             ) : activeTab === 'satellite' ? (
               <div className="space-y-6">
                 <SatelliteUploader site={site} />
                 <SatelliteGallery site={site} />
               </div>
             ) : activeTab === 'field' ? (
-              <div className="space-y-6">
+              <div data-tour="field-panel" className="space-y-6">
                 <GeotagUploader site={site} />
                 <GeotagGallery site={site} />
               </div>
             ) : activeTab === 'change' ? (
               <div className="space-y-6">
-                <ChangeDetectionBanner metrics={metrics} />
+                <div data-tour="change-banner"><ChangeDetectionBanner metrics={metrics} /></div>
                 <BeforeAfterComparison metrics={metrics} satellite={satelliteQuery.data ?? []} site={site} />
               </div>
             ) : (
@@ -401,6 +422,10 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
           </>
         )}
       </div>
+
+      {tourOpen && site && (
+        <TourOverlay onApply={applyTourStep} onClose={() => onTourClose?.()} />
+      )}
     </section>
   );
 };

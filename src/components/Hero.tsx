@@ -1,8 +1,24 @@
 import { ArrowUpRight, Play } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useSites } from '../features/sites/useSites';
 import VideoBackground from './VideoBackground';
 import Navbar from './Navbar';
 
 export default function Hero() {
+  const navigate = useNavigate();
+  const { data: sites } = useSites();
+
+  /*
+   * The tour needs a site to run on, so this opens the first one and requests
+   * the tour through router state rather than a query string — it is a UI
+   * mode, not something anyone should bookmark or share.
+   */
+  const startTour = () => {
+    const slug = sites?.[0]?.slug;
+    if (slug) navigate(`/sites/${slug}`, { state: { startTour: true } });
+    else navigate('/sites');
+  };
+
   return (
     <div className="relative min-h-screen w-full overflow-hidden flex flex-col justify-end">
       <VideoBackground />
@@ -38,7 +54,10 @@ export default function Hero() {
             <ArrowUpRight size={18} />
           </a>
           
-          <button className="glass border border-white/60 bg-white/40 backdrop-blur-md rounded-full px-7 py-3.5 text-sm font-medium text-[#111111] flex items-center gap-2 btn-hover-scale transition-transform">
+          <button
+            onClick={startTour}
+            className="glass border border-white/60 bg-white/40 backdrop-blur-md rounded-full px-7 py-3.5 text-sm font-medium text-[#111111] flex items-center gap-2 btn-hover-scale transition-transform"
+          >
             <Play size={16} className="fill-[#111111]" />
             Watch the Analysis
           </button>

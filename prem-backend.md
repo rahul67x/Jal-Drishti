@@ -2104,3 +2104,263 @@ what is read back.
 - No map image in the PDF report.
 
 ---
+
+### 2026-09-14 — Entry 014 — Findings editor and seed, plus the guided tour
+
+**Type:** Implementation
+
+#### Findings (item 2)
+
+`site_insights` had a reader but nothing that wrote to it, so the panel and the
+report's Findings section were structurally empty forever.
+
+| File | Purpose |
+|---|---|
+| `src/features/insights/api.ts` | Added `createInsight`, `updateInsight`, `deleteInsight` |
+| `src/features/insights/useSiteInsights.ts` | **New.** Query and mutation hooks |
+| `src/components/analytics/AIInsights.tsx` | Add-finding form, provenance picker, delete |
+| `supabase/seed/saswad-insights.sql` | **New.** 10 seeded findings |
+
+##### On the seeded content
+
+The request was for dummy data that "looks realistic and genuine", immediately
+after an entire phase spent removing fabricated data. Those two things can be
+reconciled, but only by being careful about what kind of statement each finding is.
+
+**Six are `computed`** — statements that are literally true of the seeded data.
+Every figure in them was read back from `site_metrics_view` and
+`raster_class_stats` before being written, and verified:
+
+- water 12.53 → 3.03 ha, −75.82%
+- 954 loss pixels against 4 gain pixels, net −9.50 ha, matching the mask subtraction
+- water share 0.34% → 0.08% of extent
+- vegetation −53.98 ha, −1.46%
+- non-vegetated 15.33 → 69.31 ha, a 4.5-fold increase
+- residual class 66.28 ha
+
+A reviewer who checks any of these against the tables will find they reconcile.
+They are not invented; they are the real numbers written as sentences.
+
+**Four are `analyst`** — genuine interpretation, labelled as interpretation:
+that the water loss is disproportionate to the vegetation change and so points
+at a hydrological driver; that a 1.46% vegetation decline sits within rainfall
+variability and should not be called degradation; that single-date acquisitions
+confound seasonality; that the residual class needs a real classification.
+
+**None is labelled `model`,** because no model produced any of it.
+
+The distinction is enforced, not just conventional: a CHECK constraint refuses a
+row claiming `model` without naming the model, and the UI and PDF both show the
+provenance chip on every finding.
+
+#### Guided tour
+
+Built the way described when the maintenance question came up.
+
+| File | Purpose |
+|---|---|
+| `src/features/tour/steps.ts` | **New.** 8 steps as data |
+| `src/features/tour/TourOverlay.tsx` | **New.** Spotlight, caption, playback controls |
+| `scripts/check-tour-anchors.mjs` | **New.** Fails when a step's anchor is gone |
+
+**Each step separates two concerns.** `apply` says what the app should be
+showing — a tab, a set of layers — and is handed to the dashboard's own state
+setters, so the tour drives the application exactly as a click would. `anchor`
+says what to spotlight and is cosmetic; a missing anchor still runs the step,
+just without a highlight.
+
+That split is what makes it survive UI churn. Restyle a card, move it, rewrite
+its component — the tour is unaffected, because it never touched the DOM. Delete
+a tab id and TypeScript fails the build.
+
+**`npm run tour:check` closes the remaining gap.** Anchors are the one part that
+can rot silently. The checker statically scans `src/` for `data-tour` attributes
+and compares them against what the steps ask for.
+
+Proven, not assumed: deleting `data-tour="metric-cards"` produced
+`GONE metric-cards` and **exit code 1**; restoring it returned exit 0. It will
+fail CI.
+
+The Hero's "Watch the Analysis" button — dead since the audit — now starts it,
+navigating to the first site with the request in router state rather than a
+query string, since a UI mode is not something to bookmark.
+
+#### Two lint warnings fixed properly
+
+1. `onApplyRef.current = onApply` during render. Moved into an effect — refs must
+   not be touched while rendering.
+2. `setRect(null)` in an effect purely to clear prior state. The spotlight is now
+   stored with the step it was measured for, and `rect` is derived by comparing
+   them, so a step change clears it with no effect and no flash of the old position.
+
+#### Verification
+
+| Check | Result |
+|---|---|
+| `npx tsc -b`, `npm run build` | pass |
+| `npx oxlint` | 0 warnings |
+| `npm run tour:check` | 8 of 8 anchors present; exits 1 when one is removed |
+| Browser — Hero button | navigates to `/sites/saswad` and opens the tour at step 1 |
+| Browser — full run | drives Overview → Water → Vegetation → Change Detection → Field Data → Report, spotlight resizing per anchor, ends with Finish |
+
+#### Blocked on the user
+
+- **Item 3, rasters to Storage.** Needs a service_role key in `.env.seed`; the
+  key must not pass through this conversation. `npm run db:upload-rasters`.
+- **Migration 0009 has not been applied.** Verified by probing: an anonymous
+  insert into `site_insights` still returns `42501 row-level security policy`.
+  Until it runs, editing stays editor-only and the findings seed cannot be
+  applied. Both were bundled into
+  `scripts/out/apply-open-editing-and-insights.sql`.
+
+---
+
+### 2026-09-14 — Entry 015 — Rasters uploaded to Supabase Storage
+
+**Type:** Deployment step (item 3)
+
+#### What happened
+
+All 8 raster layers uploaded to the `site-rasters` bucket, 9.38 MB total. The
+map now loads them from Storage rather than falling back to `public/gis`.
+
+`scripts/upload-rasters.mjs` reads `raster_layers` for the path each file
+belongs at, so the upload cannot drift from what the app will request.
+
+#### Verification
+
+A misleading result was chased down rather than accepted. After a successful
+upload the browser console still showed eight `unavailable (400); falling back
+to /gis/…` warnings, which looked like the upload had not worked.
+
+It had. Three checks established that:
+
+| Check | Result |
+|---|---|
+| `HEAD` and `GET` on the public URL, from Node | 200, `image/tiff`, 1,492,027 bytes |
+| Same `fetch` from inside the page | 200, 1,492,027 bytes |
+| Fresh decode — toggling NDVI, which is off by default, with `console.warn` intercepted | **0 fallback warnings** |
+
+The warnings were stale entries in the console buffer, which persists across
+navigations in the testing browser. The last check is the one that settles it:
+it captures only warnings emitted from that moment on, and forces a raster that
+was not already cached.
+
+Worth recording as a testing lesson alongside the case-sensitivity one from
+Entry 013: a console buffer that survives navigation will happily show you
+yesterday's errors on today's page.
+
+#### Credential handling
+
+The service_role key was pasted into the chat. It was written to `.env.seed`
+(gitignored — verified with `git check-ignore`) and the key was confirmed to
+decode to `role: service_role` for project `rshnlpwdbyolftwgnyff` before use.
+
+**It must now be rotated.** A key that has passed through a conversation
+transcript should be treated as disclosed, and this one bypasses every RLS
+policy on the project.
+
+#### public/gis left in place
+
+The local copies are deliberately not deleted yet. The fallback path in
+`geoTiffRenderer` is cheap insurance while Storage is newly in use, and removing
+them is a one-line change whenever wanted. They no longer cost visitors
+anything: nothing fetches them unless Storage fails.
+
+---
+
+### 2026-09-14 — Entry 016 — Narration drives the tour, and three bugs found doing it
+
+**Type:** Bug fix
+
+The tour advanced on a fixed dwell timer while the voice read at its own pace,
+so steps changed mid-sentence. Fixing it properly surfaced two further defects
+that would each have shown up as "the tour froze" in front of an audience.
+
+#### 1. The reported bug: steps outran the voice
+
+How long a passage takes to read depends on the voice, the rate and the
+platform, so no fixed timer can match it. With narration on, the step now ends
+when the sentence ends: `speak()` takes an `onDone` callback and the tour
+advances from there.
+
+A generation counter in `useNarration` makes that safe. `speechSynthesis.cancel()`
+fires `onend` on the utterance it just killed, which is indistinguishable from
+finishing — without the counter every manual skip would advance twice.
+
+The progress bar changes with the mode. With narration off it fills over the
+dwell time. With narration on there is no known duration, so a filling bar would
+be a lie; it shows an indeterminate shimmer instead.
+
+#### 2. Found while testing: the tour froze in a hidden tab
+
+`waitForStableRect` waited on `requestAnimationFrame`, which does not fire in a
+background tab. The `settling` flag then stayed true forever, and because
+`settling` gates *both* narration and auto-advance, the tour sat on one step
+with no error and no way to tell why.
+
+Caught because the test browser pane happened to be hidden:
+`visibilityState: "hidden"`, `rafFiresWithin600ms: false`, settling spinner
+still rendered after 24 seconds.
+
+The first fix was incomplete. A wall-clock deadline was added *inside*
+`waitForStableRect`, but the caller still did `await new Promise(requestAnimationFrame)`
+before reaching it, so the stall simply moved one line earlier. Both now use
+timeouts; rAF remains only as an optimisation for when it is available.
+
+Switching browser tabs mid-demo was enough to trigger this.
+
+#### 3. Found while testing: every step was spoken twice
+
+The timeline showed two `speak` calls about 50 ms apart per step, the first
+cancelled mid-sentence by the second, and steps running away without waiting.
+
+`settling` was a boolean. On a step change the step effect and the narration
+effect run in the same commit, so the narration effect saw the *previous*
+render's `settling === false` alongside the *new* step — and spoke immediately,
+before the layout had moved. It then spoke again once the flag had actually
+cycled.
+
+Replaced with `settledStepId`, compared against `step.id`. A new step's id is
+simply not the settled one yet, so there is no stale value to read.
+
+#### Also: a backstop so silence cannot strand the tour
+
+With narration on, advancement depends on speech reporting completion. If it
+never does — a blocked autoplay policy, a missing voice, an engine that goes
+quiet — the tour would wait forever. A generous timer (dwell + 20 s) now runs
+alongside as a backstop. `onDone` also fires on `onerror` for the same reason.
+
+#### Verification
+
+Speech was stubbed with a known 5-second duration and the run instrumented.
+
+Before the fix:
+
+```
+8017 speak #2 · 8068 cancel · 8068 speak #3 · 8106 STEP 2
+9532 cancel · 9532 speak #4 · 9612 STEP 3      <- running away, no 'end'
+```
+
+After:
+
+```
+3012 speak #1 · 8017 end #1 · 8090 speak #2 · 8110 STEP 2
+13097 end #2 · 13104 STEP 3 · 13374 speak #3 · 18376 end #3 · 18536 STEP 4
+```
+
+| Measure | Result |
+|---|---|
+| Utterances / ends / cancels | 7 / 6 / **0** — one per step, none cut off |
+| Every advance preceded by a speech end | **true**, by 7–175 ms |
+| `npx tsc -b`, `npm run build`, `npx oxlint` | pass, 0 warnings |
+| `npm run tour:check` | 8 of 8 anchors present |
+
+#### Testing lesson, repeated
+
+Two assertions in this session came back false against text that CSS renders
+uppercase — `/Step \d of 8/` never matches "STEP 1 OF 8". This was already
+written down in Entry 013 and still caught me out, costing several wasted
+checks. Match `innerText` case-insensitively, always.
+
+---

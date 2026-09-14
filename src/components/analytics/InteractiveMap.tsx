@@ -241,6 +241,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   return (
     <div
       ref={containerRef}
+      data-tour="map"
       className={`bg-neutral-900 overflow-hidden ${
         usingFallback
           ? // Pinned over the viewport when the native API is unavailable.

@@ -16,7 +16,8 @@
     "db:types": "supabase gen types typescript --linked > src/lib/database.types.ts",
     "db:bundle": "node scripts/bundle-sql.mjs",
     "db:upload-rasters": "node --env-file=.env.seed scripts/upload-rasters.mjs",
-    "report:render": "node --env-file=.env.local scripts/render-report.mjs"
+    "report:render": "node --env-file=.env.local scripts/render-report.mjs",
+    "tour:check": "node scripts/check-tour-anchors.mjs"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.9.0",
