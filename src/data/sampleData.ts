@@ -3,6 +3,8 @@
 // All data is representative for the Saswad watershed demo
 // ============================================================
 
+import { verifiedInsights } from './realMetrics';
+
 // --- NDVI Time Series ---
 export const ndviTimeSeries = [
   { month: 'Jan', ndvi: 0.38 },
@@ -210,18 +212,7 @@ export const changeDetectionZones: GeoJSON.FeatureCollection = {
 };
 
 // --- AI Insights Pool ---
-export const aiInsightsPool = [
-  'Vegetation density shows a consistent improvement of +4.8% in the north-western portion of the study area, particularly around reforestation zones established in 2023.',
-  'Three water conservation structures (WB-01, WB-07, WB-08) demonstrate increased surrounding vegetation within a 200 m buffer, suggesting positive downstream ecological impact.',
-  'Two regions in the eastern sector demonstrate declining vegetation health (NDVI < 0.30) and may require immediate field verification and intervention planning.',
-  'Seasonal water coverage has increased by 18% compared to the previous analysis period, with the highest gains observed near nala bund structures.',
-  'Soil moisture levels remain moderate (42%) across the central watershed, with higher values observed near percolation tanks and contour bunding areas.',
-  'Change detection analysis reveals 34.2 hectares of restored land since 2021, primarily in areas with combined structural and biological interventions.',
-  'Drainage network analysis indicates first-order streams in the southern sector are showing reduced flow velocities, likely due to upstream check dams and loose boulder structures.',
-  'Field observation density is highest in the central watershed zone (36 locations), but the northern ridge remains under-surveyed and requires additional ground-truthing.',
-  'Land use transition analysis shows a 6.3% shift from open/barren land to forest/tree cover between 2021 and 2026, consistent with watershed development program targets.',
-  'NDVI temporal analysis suggests peak vegetation health occurs in July–August (monsoon), with a secondary recovery visible in post-monsoon October readings.',
-];
+export const aiInsightsPool = verifiedInsights;
 
 // --- Change Detection Stats ---
 export const changeStats = {

@@ -124,3 +124,9 @@ export const lulcDistributionData = [
   { name: 'Other', value: 66.31, share: 1.78, color: '#D97706' },
   { name: 'Water', value: 3.03, share: 0.08, color: '#4D8FA8' },
 ];
+
+export const verifiedInsights = [
+  'Satellite analysis detected a significant contraction in surface water extent from 12.53 ha in 2023 to 3.03 ha in 2026 across the 37.21 km² analysis extent—a net reduction of 9.50 ha (-75.82%), driven by 9.54 ha of detected water loss against only 0.04 ha of localized water gain.',
+  'Positive-NDVI vegetation cover exhibited high overall spatial stability with a slight reduction from 3,705.66 ha in 2023 to 3,651.68 ha in 2026, reflecting a marginal net decline of 53.98 ha (-1.46%) while remaining the dominant land-cover class across the watershed extent.',
+  'The dashboard provides evidence-based decision support by spatially localizing critical water depletion hotspots and stable vegetation canopies, enabling conservation authorities to prioritize field interventions, check dam desiltation, and artificial recharge structures where water loss is most acute.',
+];

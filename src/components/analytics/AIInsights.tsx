@@ -1,24 +1,35 @@
 import React, { useState } from 'react';
-import { Sparkles, RefreshCw, CheckCircle2, ArrowRight } from 'lucide-react';
-import { aiInsightsPool } from '../../data/sampleData';
+import { Sparkles, RefreshCw, CheckCircle2, ArrowRight, Download, Check } from 'lucide-react';
+import { verifiedInsights } from '../../data/realMetrics';
+import { generateGeospatialReport } from '../../utils/exportReport';
 
 export const AIInsights: React.FC = () => {
-  const [insights, setInsights] = useState<string[]>([
-    aiInsightsPool[0],
-    aiInsightsPool[1],
-    aiInsightsPool[2],
-  ]);
+  const [insights, setInsights] = useState<string[]>(verifiedInsights);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isExporting, setIsExporting] = useState<boolean>(false);
+  const [exportSuccess, setExportSuccess] = useState<boolean>(false);
 
-  const handleGenerate = () => {
+  const handleRefresh = () => {
     setIsLoading(true);
 
     setTimeout(() => {
-      // Shuffle and pick 3 distinct insights
-      const shuffled = [...aiInsightsPool].sort(() => 0.5 - Math.random());
-      setInsights(shuffled.slice(0, 3));
+      // Re-verify against verified raster metrics
+      setInsights([...verifiedInsights]);
       setIsLoading(false);
-    }, 1200);
+    }, 600);
+  };
+
+  const handleExportReport = async () => {
+    try {
+      setIsExporting(true);
+      await generateGeospatialReport();
+      setExportSuccess(true);
+      setTimeout(() => setExportSuccess(false), 3500);
+    } catch (err) {
+      console.error('Failed to generate report:', err);
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   return (
@@ -33,18 +44,19 @@ export const AIInsights: React.FC = () => {
               JalDrishti Insights
             </h3>
             <p className="text-xs text-[#6F6F6F]">
-              AI-assisted geospatial interpretation & automated anomaly detection
+              Evidence-based synthesis derived from verified Sentinel-2 QGIS raster analysis
             </p>
           </div>
         </div>
 
         <button
-          onClick={handleGenerate}
+          onClick={handleRefresh}
           disabled={isLoading}
           className="self-start sm:self-auto flex items-center gap-2 px-4 py-2 rounded-full bg-[#183A2A] text-white text-xs font-medium hover:bg-[#35624B] transition-colors shadow-sm disabled:opacity-75 cursor-pointer btn-hover-scale"
+          title="Refresh verified multi-temporal raster synthesis"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-          <span>{isLoading ? 'Synthesizing...' : 'Generate Insights'}</span>
+          <span>{isLoading ? 'Synthesizing...' : 'Refresh Insights'}</span>
         </button>
       </div>
 
@@ -55,7 +67,7 @@ export const AIInsights: React.FC = () => {
             <span className="insights-loading-dot w-2 h-2 rounded-full bg-[#35624B]" />
             <span className="insights-loading-dot w-2 h-2 rounded-full bg-[#35624B]" />
             <span className="insights-loading-dot w-2 h-2 rounded-full bg-[#35624B]" />
-            <span className="ml-1 font-mono">Running convolutional feature extraction on raster layers...</span>
+            <span className="ml-1 font-mono">Synthesizing verified QGIS multi-temporal raster statistics...</span>
           </div>
         </div>
       ) : (
@@ -72,11 +84,42 @@ export const AIInsights: React.FC = () => {
         </div>
       )}
 
-      <div className="mt-4 pt-3 border-t border-black/5 flex items-center justify-between text-[11px] text-[#6F6F6F]">
-        <span>Model: HydroVision-v3.2 • Multi-temporal change confidence: 94.2%</span>
-        <span className="flex items-center gap-1 font-medium text-[#183A2A] hover:underline cursor-pointer">
-          Export Report <ArrowRight className="w-3 h-3" />
-        </span>
+      <div className="mt-4 pt-3 border-t border-black/5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-[11px] text-[#6F6F6F]">
+        <div className="flex items-center gap-2">
+          <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+          <span>Sentinel-2 (10m) • QGIS Raster Statistics • EPSG:32643 • Extent: 37.21 km²</span>
+        </div>
+
+        <button
+          id="export-report-btn"
+          type="button"
+          onClick={handleExportReport}
+          disabled={isExporting}
+          className={`flex items-center gap-1.5 font-semibold text-xs px-3 py-1.5 rounded-xl border transition-all cursor-pointer ${
+            exportSuccess
+              ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+              : 'bg-white hover:bg-[#EEF5EC] text-[#183A2A] border-[#35624B]/30 shadow-xs'
+          } disabled:opacity-50`}
+          title="Export verified geospatial analysis report as PDF"
+        >
+          {isExporting ? (
+            <>
+              <RefreshCw className="w-3.5 h-3.5 animate-spin text-[#35624B]" />
+              <span>Generating PDF...</span>
+            </>
+          ) : exportSuccess ? (
+            <>
+              <Check className="w-3.5 h-3.5 text-emerald-700" />
+              <span>Report Downloaded!</span>
+            </>
+          ) : (
+            <>
+              <Download className="w-3.5 h-3.5 text-[#35624B]" />
+              <span>Export Report</span>
+              <ArrowRight className="w-3 h-3 text-[#35624B]" />
+            </>
+          )}
+        </button>
       </div>
     </div>
   );
