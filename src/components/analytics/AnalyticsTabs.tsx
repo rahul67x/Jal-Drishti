@@ -1,7 +1,7 @@
 import React from 'react';
-import { LayoutDashboard, Trees, Droplets, ArrowLeftRight, Camera } from 'lucide-react';
+import { LayoutDashboard, Trees, Droplets, ArrowLeftRight, Camera, Satellite, FileText } from 'lucide-react';
 
-export type AnalyticsTabId = 'overview' | 'vegetation' | 'water' | 'change' | 'field';
+export type AnalyticsTabId = 'overview' | 'vegetation' | 'water' | 'change' | 'field' | 'satellite' | 'report';
 
 interface AnalyticsTabsProps {
   activeTab: AnalyticsTabId;
@@ -14,6 +14,8 @@ const tabs: { id: AnalyticsTabId; label: string; icon: React.FC<{ className?: st
   { id: 'water', label: 'Water', icon: Droplets },
   { id: 'change', label: 'Change Detection', icon: ArrowLeftRight },
   { id: 'field', label: 'Field Data', icon: Camera },
+  { id: 'satellite', label: 'Satellite', icon: Satellite },
+  { id: 'report', label: 'Report', icon: FileText },
 ];
 
 export const AnalyticsTabs: React.FC<AnalyticsTabsProps> = ({ activeTab, onSelectTab }) => {

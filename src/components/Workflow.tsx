@@ -27,7 +27,11 @@ const steps = [
   {
     icon: Satellite,
     title: 'Satellite Intelligence',
-    description: '30 m spatial datasets provide consistent environmental information across the landscape.',
+    // The vegetation and water analysis runs on 10 m Sentinel-2; only the
+    // terrain-derived drainage network comes from 30 m SRTM. Stating a single
+    // "30 m" figure contradicted the resolution shown by the analytics section.
+    description:
+      'Sentinel-2 imagery at 10 m, with 30 m SRTM elevation for terrain, provides consistent coverage across the landscape.',
   },
   {
     icon: Layers,

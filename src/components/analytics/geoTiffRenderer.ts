@@ -7,9 +7,15 @@ export interface RasterLayerData {
   height: number;
 }
 
-// Memory cache to avoid re-decoding GeoTIFF rasters on every toggle
+// Memory cache so toggling a layer never re-decodes a multi-megabyte GeoTIFF.
 const rasterCache = new Map<string, RasterLayerData>();
 
+/**
+ * Colour ramps, keyed by raster_layers.colormap_key in the database.
+ *
+ * Bounds used to live here too, as three hardcoded constants. They now come
+ * from the raster_layers row, so adding a site needs no code change.
+ */
 export type ColorMapType =
   | 'ndvi'
   | 'water'
@@ -19,32 +25,6 @@ export type ColorMapType =
   | 'streams'
   | 'vegetation'
   | 'ndvi_change';
-
-/**
- * Standard WGS84 bounding box for the Purandar-Saswad 609x611 analysis rasters.
- * Derived from UTM Zone 43N tiepoint (391180, 2027620) + 10m pixel scale,
- * reprojected to WGS84. Verified against QGIS.
- */
-export const STUDY_AREA_RASTER_BOUNDS: [[number, number], [number, number]] = [
-  [18.2805351, 73.9701432], // South-West [lat, lon]
-  [18.3358732, 74.0282681], // North-East [lat, lon]
-];
-
-/**
- * Bounds for the 205x205 30m SRTM streams raster
- */
-export const STREAMS_RASTER_BOUNDS: [[number, number], [number, number]] = [
-  [18.2805182, 73.9699510], // South-West [lat, lon]
-  [18.3358316, 74.0285009], // North-East [lat, lon]
-];
-
-/**
- * Web PNG overlay bounds from NDVI_Change_2023_2026.pgw
- */
-export const NDVI_CHANGE_PNG_BOUNDS: [[number, number], [number, number]] = [
-  [18.2804925, 73.9701841], // South-West [lat, lon]
-  [18.3358340, 74.0283418], // North-East [lat, lon]
-];
 
 /**
  * Colormap for non-NDVI binary/categorical raster layers.
@@ -98,28 +78,62 @@ function applyColorMap(
 }
 
 /**
+ * Fetches a raster, preferring Supabase Storage and falling back to the copy
+ * still in public/gis.
+ *
+ * The fallback exists only for the migration window: rasters are registered in
+ * the database before scripts/upload-rasters.mjs has necessarily been run. Once
+ * the upload is done and the local copies are deleted, the fallback stops being
+ * reachable and nothing else changes. It warns loudly so a missing upload is
+ * noticed rather than silently masked.
+ */
+async function fetchRaster(url: string, fallbackUrl?: string): Promise<ArrayBuffer> {
+  const response = await fetch(url).catch(() => null);
+
+  if (response?.ok) return response.arrayBuffer();
+
+  if (fallbackUrl && fallbackUrl !== url) {
+    console.warn(
+      `[geoTiffRenderer] ${url} unavailable (${response?.status ?? 'network error'}); ` +
+        `falling back to ${fallbackUrl}. Run "node scripts/upload-rasters.mjs" to ` +
+        `push rasters to Supabase Storage.`
+    );
+    const fallback = await fetch(fallbackUrl);
+    if (!fallback.ok) {
+      throw new Error(
+        `Raster unavailable from both Storage (${url}) and local fallback (${fallbackUrl}: ${fallback.status})`
+      );
+    }
+    return fallback.arrayBuffer();
+  }
+
+  throw new Error(
+    `Failed to fetch raster at ${url}: ${response ? `${response.status} ${response.statusText}` : 'network error'}`
+  );
+}
+
+/**
  * Decodes a real GeoTIFF in browser memory and generates a data URL
- * for use as a Leaflet ImageOverlay, with accurate geospatial bounds.
+ * for use as a Leaflet ImageOverlay.
  *
  * NDVI rasters are rendered as a QGIS-matching grayscale singleband
  * (linear min–max stretch). All other rasters use binary colormaps.
+ *
+ * `bounds` is required and comes from the raster_layers row — the renderer no
+ * longer guesses geography from a filename.
  */
 export async function loadAndRenderGeoTiff(
   url: string,
   colorMap: ColorMapType,
-  explicitBounds?: [[number, number], [number, number]]
+  bounds: [[number, number], [number, number]],
+  fallbackUrl?: string
 ): Promise<RasterLayerData> {
   const cacheKey = `${url}_${colorMap}`;
   if (rasterCache.has(cacheKey)) {
     return rasterCache.get(cacheKey)!;
   }
 
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch GeoTIFF at ${url}: ${response.status} ${response.statusText}`);
-  }
-
-  const arrayBuffer = await response.arrayBuffer();
+  const arrayBuffer = await fetchRaster(url, fallbackUrl);
   const tiff = await fromArrayBuffer(arrayBuffer);
   const image = await tiff.getImage();
   const width = image.getWidth();
@@ -190,8 +204,6 @@ export async function loadAndRenderGeoTiff(
 
   ctx.putImageData(imageData, 0, 0);
   const dataUrl = canvas.toDataURL('image/png');
-
-  const bounds = explicitBounds || (url.includes('streams') ? STREAMS_RASTER_BOUNDS : STUDY_AREA_RASTER_BOUNDS);
 
   const result: RasterLayerData = { dataUrl, bounds, width, height };
   rasterCache.set(cacheKey, result);

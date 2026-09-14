@@ -1,120 +1,104 @@
 import React from 'react';
-import { Polygon, Popup } from 'react-leaflet';
-import { changeDetectionZones, changeStats } from '../../data/sampleData';
+import { CheckCircle2, AlertTriangle } from 'lucide-react';
+import type { SiteMetricsRow } from '../../lib/database.types';
+import { formatHa, formatPct, formatSignedHa } from '../../lib/format';
 
-interface ChangeDetectionProps {
-  showChangeDetection: boolean;
-}
+/**
+ * The four-tile change summary.
+ *
+ * Every figure is now the measured one. This banner previously read from
+ * `changeStats` in sampleData.ts — "+4.8%" vegetation gain, "+12.6%" water
+ * coverage — and sat directly beneath metric cards reporting the real -1.46%
+ * and -75.82%. Two contradictory sets of numbers on one screen.
+ */
 
-export const ChangeDetection: React.FC<ChangeDetectionProps> = ({ showChangeDetection }) => {
-  if (!showChangeDetection) return null;
+const Tile: React.FC<{
+  label: string;
+  value: string;
+  sub?: string;
+  dot: string;
+  wrap: string;
+  text: string;
+}> = ({ label, value, sub, dot, wrap, text }) => (
+  <div className={`p-2.5 rounded-xl border ${wrap}`}>
+    <div className={`flex items-center gap-1.5 font-medium text-[11px] ${text}`}>
+      <span className={`w-2 h-2 rounded-full ${dot}`} />
+      {label}
+    </div>
+    <div className="text-xl font-serif-display font-bold mt-1 tabular-nums text-neutral-900">
+      {value}
+    </div>
+    {sub && <div className="text-[10px] text-neutral-500 mt-0.5">{sub}</div>}
+  </div>
+);
+
+export const ChangeDetectionBanner: React.FC<{ metrics?: SiteMetricsRow | null }> = ({
+  metrics,
+}) => {
+  if (!metrics) return null;
+
+  const vegPositive = Number(metrics.vegetation_change_ha ?? 0) >= 0;
+  const crossCheck = metrics.water_change_cross_check_ok;
 
   return (
-    <>
-      {changeDetectionZones.features.map((feature, idx) => {
-        const props = (feature.properties || {}) as Record<string, any>;
-        const changeType = props.change as
-          | 'vegetation_gain'
-          | 'vegetation_loss'
-          | 'water_increase';
-        const coords = (feature.geometry as GeoJSON.Polygon).coordinates[0].map(
-          (coord) => [coord[1], coord[0]] as [number, number]
-        );
-
-        let color = '#22C55E';
-        let fillColor = '#22C55E';
-        let changeTitle = 'Vegetation Gain';
-        let changeDesc = 'Positive biomass accretion & afforestation.';
-
-        if (changeType === 'vegetation_loss') {
-          color = '#EF4444';
-          fillColor = '#EF4444';
-          changeTitle = 'Vegetation Loss';
-          changeDesc = 'Canopy thinning or seasonal scrub clearance.';
-        } else if (changeType === 'water_increase') {
-          color = '#3B82F6';
-          fillColor = '#3B82F6';
-          changeTitle = 'Water Surface Expansion';
-          changeDesc = 'New ponding area behind newly installed check dam.';
-        }
-
-        return (
-          <Polygon
-            key={`change-${idx}`}
-            positions={coords}
-            pathOptions={{
-              color,
-              weight: 2,
-              fillColor,
-              fillOpacity: 0.55,
-            }}
-          >
-            <Popup>
-              <div className="p-1 font-sans text-xs space-y-1">
-                <div className="font-bold flex items-center justify-between gap-2" style={{ color }}>
-                  <span>{props.label}</span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-neutral-100 uppercase">
-                    {changeType.replace('_', ' ')}
-                  </span>
-                </div>
-                <div className="text-neutral-700 font-medium">{changeTitle}</div>
-                <p className="text-[11px] text-neutral-500 leading-normal">{changeDesc}</p>
-                <div className="pt-1 border-t text-[10px] text-neutral-400">
-                  Multitemporal pixel delta (2021 vs 2026)
-                </div>
-              </div>
-            </Popup>
-          </Polygon>
-        );
-      })}
-    </>
-  );
-};
-
-export const ChangeDetectionBanner: React.FC = () => {
-  return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3 bg-white/90 backdrop-blur-md rounded-2xl border border-black/8 text-xs shadow-sm">
-      <div className="p-2.5 rounded-xl bg-emerald-50/70 border border-emerald-200/50">
-        <div className="flex items-center gap-1.5 text-emerald-800 font-medium text-[11px]">
-          <span className="w-2 h-2 rounded-full bg-emerald-500" />
-          Vegetation Gain
-        </div>
-        <div className="text-xl font-serif-display font-bold text-emerald-950 mt-1">
-          {changeStats.vegetationGain}
-        </div>
+    <div className="space-y-2">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3 bg-white/90 backdrop-blur-md rounded-2xl border border-black/8 text-xs shadow-sm">
+        <Tile
+          label={vegPositive ? 'Vegetation Gain' : 'Vegetation Loss'}
+          value={formatSignedHa(metrics.vegetation_change_ha)}
+          sub={`${formatPct(metrics.vegetation_change_pct)} · ${metrics.vegetation_baseline_year}–${metrics.vegetation_current_year}`}
+          dot={vegPositive ? 'bg-emerald-500' : 'bg-rose-500'}
+          wrap={vegPositive ? 'bg-emerald-50/70 border-emerald-200/50' : 'bg-rose-50/70 border-rose-200/50'}
+          text={vegPositive ? 'text-emerald-800' : 'text-rose-800'}
+        />
+        <Tile
+          label="Water Loss"
+          value={formatHa(metrics.water_loss_ha)}
+          sub="Change raster, class −1"
+          dot="bg-rose-500"
+          wrap="bg-rose-50/70 border-rose-200/50"
+          text="text-rose-800"
+        />
+        <Tile
+          label="Water Gain"
+          value={formatHa(metrics.water_gain_ha)}
+          sub="Change raster, class +1"
+          dot="bg-sky-500"
+          wrap="bg-sky-50/70 border-sky-200/50"
+          text="text-sky-800"
+        />
+        <Tile
+          label="Net Water Change"
+          value={formatSignedHa(metrics.water_net_change_ha)}
+          sub={`${metrics.change_year_from}–${metrics.change_year_to}`}
+          dot="bg-amber-500"
+          wrap="bg-amber-50/70 border-amber-200/50"
+          text="text-amber-800"
+        />
       </div>
 
-      <div className="p-2.5 rounded-xl bg-rose-50/70 border border-rose-200/50">
-        <div className="flex items-center gap-1.5 text-rose-800 font-medium text-[11px]">
-          <span className="w-2 h-2 rounded-full bg-rose-500" />
-          Vegetation Loss
+      {crossCheck !== null && crossCheck !== undefined && (
+        <div
+          className={`flex items-start gap-2 px-3.5 py-2 rounded-xl text-[11px] border ${
+            crossCheck
+              ? 'bg-emerald-50/60 border-emerald-200 text-emerald-900'
+              : 'bg-amber-50/70 border-amber-300 text-amber-900'
+          }`}
+        >
+          {crossCheck ? (
+            <CheckCircle2 className="w-3.5 h-3.5 mt-px shrink-0 text-emerald-600" />
+          ) : (
+            <AlertTriangle className="w-3.5 h-3.5 mt-px shrink-0 text-amber-600" />
+          )}
+          <span>
+            {crossCheck
+              ? `Cross-check passed: the change raster (${formatSignedHa(metrics.water_net_change_ha)}) matches subtracting the two independently derived water masks (${formatSignedHa(metrics.water_change_ha)}).`
+              : `Cross-check failed: the change raster (${formatSignedHa(metrics.water_net_change_ha)}) disagrees with the water masks (${formatSignedHa(metrics.water_change_ha)}).`}
+          </span>
         </div>
-        <div className="text-xl font-serif-display font-bold text-rose-950 mt-1">
-          {changeStats.vegetationLoss}
-        </div>
-      </div>
-
-      <div className="p-2.5 rounded-xl bg-sky-50/70 border border-sky-200/50">
-        <div className="flex items-center gap-1.5 text-sky-800 font-medium text-[11px]">
-          <span className="w-2 h-2 rounded-full bg-sky-500" />
-          Water Coverage
-        </div>
-        <div className="text-xl font-serif-display font-bold text-sky-950 mt-1">
-          {changeStats.waterCoverage}
-        </div>
-      </div>
-
-      <div className="p-2.5 rounded-xl bg-amber-50/70 border border-amber-200/50">
-        <div className="flex items-center gap-1.5 text-amber-800 font-medium text-[11px]">
-          <span className="w-2 h-2 rounded-full bg-amber-500" />
-          Restored Land
-        </div>
-        <div className="text-xl font-serif-display font-bold text-amber-950 mt-1">
-          {changeStats.restoredLand}
-        </div>
-      </div>
+      )}
     </div>
   );
 };
 
-export default ChangeDetection;
+export default ChangeDetectionBanner;

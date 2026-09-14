@@ -51,7 +51,9 @@ export const MapLayerControls: React.FC<MapLayerControlsProps> = ({
   ].filter(Boolean).length;
 
   return (
-    <div className="absolute top-4 right-4 z-[1000] max-w-xs w-72 bg-white/95 backdrop-blur-md rounded-2xl border border-black/10 shadow-xl overflow-hidden text-xs">
+    // On a 375 px phone a fixed 288 px panel covers most of the map. Cap it to
+    // the viewport minus the map's own inset so the map stays usable.
+    <div className="absolute top-4 right-4 z-[1000] w-[min(18rem,calc(100vw-3rem))] bg-white/95 backdrop-blur-md rounded-2xl border border-black/10 shadow-xl overflow-hidden text-xs">
       {/* Header with collapse button */}
       <div
         onClick={() => setIsExpanded(!isExpanded)}

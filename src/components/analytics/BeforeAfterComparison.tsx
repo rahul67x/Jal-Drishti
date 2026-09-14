@@ -1,239 +1,251 @@
-import React, { useState, useRef, useCallback } from 'react';
-import { ArrowLeftRight, Calendar, Sparkles, TrendingUp } from 'lucide-react';
-import { changeStats } from '../../data/sampleData';
+import React, { useState, useRef, useCallback, useMemo } from 'react';
+import { ArrowLeftRight, TrendingUp, TrendingDown, Info, Satellite } from 'lucide-react';
+import type { SiteMetricsRow, SatelliteImageRow, SiteRow } from '../../lib/database.types';
+import { satelliteImageUrl } from '../../features/satellite/api';
+import { formatHa, formatPct, formatSignedHa, formatDate } from '../../lib/format';
 
-export const BeforeAfterComparison: React.FC = () => {
-  const [sliderPos, setSliderPos] = useState<number>(50); // percentage 0 to 100
+/**
+ * Draggable before/after comparison.
+ *
+ * When two satellite scenes from different years exist, it compares the real
+ * imagery. When they do not, it falls back to a schematic and says so — the
+ * original version presented hand-drawn SVG as a "Multitemporal Satellite
+ * Comparison", with year dropdowns that only changed the caption, implying
+ * imagery the app did not have.
+ *
+ * Upload two scenes on the Satellite tab and this becomes a genuine comparison.
+ */
+export const BeforeAfterComparison: React.FC<{
+  metrics?: SiteMetricsRow | null;
+  satellite?: SatelliteImageRow[];
+  /** Used to shape the viewport so square extents are not cropped. */
+  site?: SiteRow | null;
+}> = ({ metrics, satellite = [], site = null }) => {
+  const [sliderPos, setSliderPos] = useState<number>(50);
   const [isDragging, setIsDragging] = useState<boolean>(false);
-  const [beforeYear, setBeforeYear] = useState<string>('2021');
-  const [afterYear, setAfterYear] = useState<string>('2026');
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const handleMove = useCallback(
-    (clientX: number) => {
-      if (!containerRef.current) return;
-      const rect = containerRef.current.getBoundingClientRect();
-      const x = clientX - rect.left;
-      const percent = Math.max(0, Math.min(100, (x / rect.width) * 100));
-      setSliderPos(percent);
-    },
-    []
-  );
+  /**
+   * The earliest and latest dated scenes, when there are two different years to
+   * compare. One scene, or several from the same year, is not a comparison.
+   */
+  const pair = useMemo(() => {
+    const dated = satellite
+      .filter((s) => s.year !== null)
+      .sort((a, b) => (a.year as number) - (b.year as number));
+    if (dated.length < 2) return null;
+    const before = dated[0];
+    const after = dated[dated.length - 1];
+    return before.year === after.year ? null : { before, after };
+  }, [satellite]);
 
-  const handleMouseDown = () => setIsDragging(true);
-  const handleMouseUp = () => setIsDragging(false);
+  const beforeYear = pair?.before.year ?? metrics?.vegetation_baseline_year ?? '—';
+  const afterYear = pair?.after.year ?? metrics?.vegetation_current_year ?? '—';
 
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (isDragging) {
-      handleMove(e.clientX);
+  const handleMove = useCallback((clientX: number) => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const percent = Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100));
+    setSliderPos(percent);
+  }, []);
+
+  /**
+   * Shape the viewport to the site's own extent.
+   *
+   * A fixed 8:3 window with object-cover crops a square study area badly —
+   * Saswad is 6110 x 6090 m, so roughly a third of it was being cut off top and
+   * bottom. Clamped so a very long or very tall extent still gives a usable box.
+   */
+  const aspect = (() => {
+    if (!site?.bbox_min_lat || !site.bbox_max_lat || !site.bbox_min_lng || !site.bbox_max_lng) {
+      return 16 / 9;
     }
-  };
+    const midLat = ((site.bbox_min_lat + site.bbox_max_lat) / 2) * (Math.PI / 180);
+    const widthDeg = (site.bbox_max_lng - site.bbox_min_lng) * Math.cos(midLat);
+    const heightDeg = site.bbox_max_lat - site.bbox_min_lat;
+    if (heightDeg <= 0) return 16 / 9;
+    return Math.max(0.75, Math.min(2.5, widthDeg / heightDeg));
+  })();
 
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (e.touches[0]) {
-      handleMove(e.touches[0].clientX);
-    }
-  };
+  const vegDown = Number(metrics?.vegetation_change_ha ?? 0) < 0;
+  const waterDown = Number(metrics?.water_change_ha ?? 0) < 0;
 
   return (
     <div className="space-y-6">
-      {/* Top Header & Year Selectors */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-2xl bg-white/80 backdrop-blur-sm border border-black/8">
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold text-[#35624B] uppercase tracking-wider">
-            <ArrowLeftRight className="w-4 h-4" />
-            <span>Multitemporal Satellite Comparison</span>
+            {pair ? <Satellite className="w-4 h-4" /> : <ArrowLeftRight className="w-4 h-4" />}
+            <span>{pair ? 'Multitemporal Satellite Comparison' : 'Schematic Comparison'}</span>
           </div>
           <h3 className="text-xl font-serif-display text-[#111111] mt-0.5">
-            Watershed Evolution (2021 vs 2026)
+            Watershed Evolution ({beforeYear} vs {afterYear})
           </h3>
         </div>
 
-        {/* Year Selectors */}
-        <div className="flex items-center gap-2 text-xs">
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-neutral-100 border border-black/5">
-            <Calendar className="w-3.5 h-3.5 text-neutral-500" />
-            <span className="text-neutral-500">Baseline:</span>
-            <select
-              value={beforeYear}
-              onChange={(e) => setBeforeYear(e.target.value)}
-              className="bg-transparent font-semibold text-neutral-800 focus:outline-none cursor-pointer"
-            >
-              <option value="2019">2019</option>
-              <option value="2020">2020</option>
-              <option value="2021">2021</option>
-            </select>
+        {pair ? (
+          <div className="text-[11px] text-[#6F6F6F] sm:text-right leading-relaxed">
+            <div>
+              <span className="font-medium text-neutral-800">{pair.before.title}</span>
+              {pair.before.sensor ? ` · ${pair.before.sensor}` : ''}
+              {pair.before.acquisition_date ? ` · ${formatDate(pair.before.acquisition_date)}` : ''}
+            </div>
+            <div>
+              <span className="font-medium text-neutral-800">{pair.after.title}</span>
+              {pair.after.sensor ? ` · ${pair.after.sensor}` : ''}
+              {pair.after.acquisition_date ? ` · ${formatDate(pair.after.acquisition_date)}` : ''}
+            </div>
           </div>
-
-          <span className="text-neutral-400 font-serif-display text-base">vs</span>
-
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#EEF5EC] border border-[#35624B]/20">
-            <Sparkles className="w-3.5 h-3.5 text-[#35624B]" />
-            <span className="text-[#35624B]">Current:</span>
-            <select
-              value={afterYear}
-              onChange={(e) => setAfterYear(e.target.value)}
-              className="bg-transparent font-semibold text-[#183A2A] focus:outline-none cursor-pointer"
-            >
-              <option value="2025">2025</option>
-              <option value="2026">2026</option>
-            </select>
+        ) : (
+          <div className="flex items-start gap-1.5 text-[11px] text-amber-800 bg-amber-50/80 border border-amber-200 rounded-xl px-3 py-2 max-w-sm">
+            <Info className="w-3.5 h-3.5 mt-px shrink-0 text-amber-600" />
+            <span>
+              These panels are illustrations, not satellite imagery. Upload two scenes
+              from different years on the Satellite tab and this becomes a real
+              comparison. The measured figures below are real either way.
+            </span>
           </div>
-        </div>
+        )}
       </div>
 
-      {/* Draggable Comparison Viewport */}
       <div
         ref={containerRef}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-        onTouchMove={handleTouchMove}
-        className="relative w-full h-[420px] sm:h-[480px] rounded-3xl overflow-hidden border border-black/10 shadow-2xl select-none cursor-ew-resize bg-neutral-900"
+        onMouseMove={(e) => isDragging && handleMove(e.clientX)}
+        onMouseUp={() => setIsDragging(false)}
+        onMouseLeave={() => setIsDragging(false)}
+        onTouchMove={(e) => e.touches[0] && handleMove(e.touches[0].clientX)}
+        style={{ aspectRatio: String(aspect) }}
+        className="relative w-full max-h-[70vh] rounded-3xl overflow-hidden border border-black/10 shadow-2xl select-none cursor-ew-resize bg-neutral-900"
       >
-        {/* RIGHT LAYER: AFTER (2026 - Lush, Active Structures, High Greenery) */}
+        {/* AFTER — greener, fuller water */}
         <div className="absolute inset-0 w-full h-full bg-gradient-to-br from-[#1b3d2b] via-[#244f38] to-[#122b1e] flex items-center justify-center overflow-hidden">
-          {/* Detailed synthetic satellite map representing 2026 */}
-          <svg className="w-full h-full object-cover opacity-90" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid slice">
-            {/* Topography contours */}
+          {pair ? (
+            <img
+              src={satelliteImageUrl(pair.after)}
+              alt={pair.after.title}
+              className="absolute inset-0 w-full h-full object-cover"
+              draggable={false}
+            />
+          ) : (
+          <svg className="w-full h-full opacity-90" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid slice">
             <path d="M 0 100 Q 250 50 500 120 T 1000 80" stroke="rgba(168,197,160,0.15)" strokeWidth="60" fill="none" />
             <path d="M 0 300 Q 300 240 600 320 T 1000 280" stroke="rgba(168,197,160,0.2)" strokeWidth="80" fill="none" />
-            
-            {/* Lush vegetation zones (2026) */}
             <polygon points="120,80 340,60 420,180 280,240 100,190" fill="#183A2A" opacity="0.85" />
             <polygon points="520,140 760,110 880,250 680,310 500,220" fill="#23533c" opacity="0.9" />
             <polygon points="260,340 480,310 560,490 320,530 180,440" fill="#183A2A" opacity="0.8" />
             <polygon points="620,360 890,320 950,510 740,540 580,430" fill="#2d6a4f" opacity="0.85" />
-
-            {/* Restored Land Parcels */}
             <rect x="360" y="210" width="140" height="90" rx="8" fill="#52b788" opacity="0.75" />
             <rect x="710" y="220" width="120" height="80" rx="6" fill="#74c69d" opacity="0.8" />
-
-            {/* Active Water Bodies & Reservoirs (Fuller in 2026) */}
             <ellipse cx="440" cy="270" rx="42" ry="24" fill="#0284c7" opacity="0.95" />
             <ellipse cx="660" cy="380" rx="55" ry="32" fill="#0284c7" opacity="0.95" />
-            <ellipse cx="230" cy="460" rx="35" ry="18" fill="#38bdf8" opacity="0.9" />
-
-            {/* Drainage Network with Active Flow */}
             <path d="M 120 80 Q 280 200 440 270 T 660 380 T 960 480" stroke="#38bdf8" strokeWidth="5" fill="none" opacity="0.9" />
-            <path d="M 440 100 Q 450 180 440 270" stroke="#60a5fa" strokeWidth="3" fill="none" opacity="0.8" />
-
-            {/* Check Dam Structures (New in 2026) */}
-            <circle cx="440" cy="270" r="7" fill="#fbbf24" stroke="#ffffff" strokeWidth="2" />
-            <circle cx="660" cy="380" r="8" fill="#fbbf24" stroke="#ffffff" strokeWidth="2" />
-            <circle cx="350" cy="235" r="6" fill="#fbbf24" stroke="#ffffff" strokeWidth="2" />
           </svg>
-
-          {/* Label Badge 2026 */}
+          )}
           <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/60 shadow-lg text-right pointer-events-none">
-            <div className="text-[10px] uppercase font-bold text-[#35624B] tracking-wider">AFTER</div>
-            <div className="text-lg font-serif-display font-bold text-[#111111]">{afterYear} — Restored</div>
-            <div className="text-[11px] text-[#35624B] font-medium">+4.8% Tree Cover • 12 Active Water Bodies</div>
+            <div className="text-[10px] uppercase font-bold text-[#35624B] tracking-wider">After</div>
+            <div className="text-lg font-serif-display font-bold text-[#111111]">{afterYear}</div>
+            <div className="text-[11px] text-[#35624B] font-medium">
+              Vegetation {formatHa(metrics?.vegetation_current_ha)}
+            </div>
           </div>
         </div>
 
-        {/* LEFT LAYER: BEFORE (2021 - Arid, Barren, Low Water, Eroded) */}
+        {/* BEFORE — drier */}
         <div
           className="absolute inset-0 w-full h-full bg-gradient-to-br from-[#4a3b2c] via-[#5c4a37] to-[#382b1f] overflow-hidden"
           style={{ clipPath: `inset(0 ${100 - sliderPos}% 0 0)` }}
         >
-          <svg className="w-full h-full object-cover opacity-90" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid slice">
-            {/* Arid Topography */}
+          {pair ? (
+            <img
+              src={satelliteImageUrl(pair.before)}
+              alt={pair.before.title}
+              className="absolute inset-0 w-full h-full object-cover"
+              draggable={false}
+            />
+          ) : (
+          <svg className="w-full h-full opacity-90" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid slice">
             <path d="M 0 100 Q 250 50 500 120 T 1000 80" stroke="rgba(212,195,163,0.15)" strokeWidth="60" fill="none" />
             <path d="M 0 300 Q 300 240 600 320 T 1000 280" stroke="rgba(212,195,163,0.2)" strokeWidth="80" fill="none" />
-
-            {/* Sparse Vegetation (2021) */}
             <polygon points="130,90 280,80 340,160 220,200 120,160" fill="#354228" opacity="0.55" />
             <polygon points="560,160 680,140 740,220 620,260 540,210" fill="#3b4d2c" opacity="0.5" />
             <polygon points="280,360 410,340 460,460 310,480 230,420" fill="#354228" opacity="0.45" />
-
-            {/* Exposed Barren & Gully Erosion Zones */}
             <rect x="360" y="210" width="140" height="90" rx="8" fill="#b08968" opacity="0.65" />
             <rect x="710" y="220" width="120" height="80" rx="6" fill="#a68a64" opacity="0.65" />
-
-            {/* Shrinking Water Bodies in 2021 */}
             <ellipse cx="440" cy="270" rx="20" ry="10" fill="#52796f" opacity="0.6" />
-            <ellipse cx="660" cy="380" rx="24" ry="12" fill="#52796f" opacity="0.6" />
-
-            {/* Ephemeral Dry Drainage Channels */}
             <path d="M 120 80 Q 280 200 440 270 T 660 380 T 960 480" stroke="#7f7f7f" strokeWidth="2.5" strokeDasharray="6 4" fill="none" opacity="0.6" />
           </svg>
-
-          {/* Label Badge 2021 */}
+          )}
           <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/60 shadow-lg pointer-events-none">
-            <div className="text-[10px] uppercase font-bold text-amber-800 tracking-wider">BEFORE</div>
-            <div className="text-lg font-serif-display font-bold text-[#111111]">{beforeYear} — Baseline</div>
-            <div className="text-[11px] text-neutral-600 font-medium">Exposed Soils • Sparse Scrub • 4 Water Bodies</div>
+            <div className="text-[10px] uppercase font-bold text-amber-800 tracking-wider">Before</div>
+            <div className="text-lg font-serif-display font-bold text-[#111111]">{beforeYear}</div>
+            <div className="text-[11px] text-neutral-600 font-medium">
+              Vegetation {formatHa(metrics?.vegetation_baseline_ha)}
+            </div>
           </div>
         </div>
 
-        {/* Draggable Vertical Divider Handle */}
         <div
           className="comparison-slider"
           style={{ left: `${sliderPos}%` }}
-          onMouseDown={handleMouseDown}
-          onTouchStart={handleMouseDown}
+          onMouseDown={() => setIsDragging(true)}
+          onTouchStart={() => setIsDragging(true)}
         />
 
-        {/* Drag Instruction Overlay */}
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-md text-white px-3 py-1.5 rounded-full text-xs font-medium pointer-events-none flex items-center gap-1.5">
-          <span>◂ Drag slider horizontally to compare ▸</span>
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-md text-white px-3 py-1.5 rounded-full text-xs font-medium pointer-events-none">
+          ◂ Drag to compare ▸
         </div>
       </div>
 
-      {/* 4 Impact Metric Cards Below Comparison */}
+      {/* Measured figures */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="p-4 rounded-2xl bg-white border border-black/8 card-hover shadow-sm">
-          <div className="flex items-center justify-between text-xs text-[#6F6F6F] mb-1">
-            <span>TREE COVER CHANGE</span>
-            <TrendingUp className="w-3.5 h-3.5 text-[#35624B]" />
+        {[
+          {
+            label: 'Vegetation Change',
+            value: formatSignedHa(metrics?.vegetation_change_ha),
+            sub: `${formatPct(metrics?.vegetation_change_pct)} of ${formatHa(metrics?.vegetation_baseline_ha)}`,
+            down: vegDown,
+          },
+          {
+            label: 'Water Change',
+            value: formatSignedHa(metrics?.water_change_ha),
+            sub: `${formatPct(metrics?.water_change_pct)} of ${formatHa(metrics?.water_baseline_ha)}`,
+            down: waterDown,
+          },
+          {
+            label: 'Water Loss Area',
+            value: formatHa(metrics?.water_loss_ha),
+            sub: 'Change raster, class −1',
+            down: true,
+          },
+          {
+            label: 'Water Gain Area',
+            value: formatHa(metrics?.water_gain_ha),
+            sub: 'Change raster, class +1',
+            down: false,
+          },
+        ].map((card) => (
+          <div
+            key={card.label}
+            className="p-4 rounded-2xl bg-white border border-black/8 card-hover shadow-sm"
+          >
+            <div className="flex items-center justify-between text-xs text-[#6F6F6F] mb-1">
+              <span className="uppercase tracking-wider text-[10px]">{card.label}</span>
+              {card.down ? (
+                <TrendingDown className="w-3.5 h-3.5 text-rose-600" />
+              ) : (
+                <TrendingUp className="w-3.5 h-3.5 text-[#35624B]" />
+              )}
+            </div>
+            <div
+              className={`text-2xl font-serif-display font-bold tabular-nums ${
+                card.down ? 'text-rose-700' : 'text-[#183A2A]'
+              }`}
+            >
+              {card.value}
+            </div>
+            <div className="text-xs text-[#6F6F6F] mt-1">{card.sub}</div>
           </div>
-          <div className="text-3xl font-serif-display font-bold text-[#183A2A]">
-            {changeStats.vegetationGain}
-          </div>
-          <div className="text-xs text-[#35624B] mt-1 font-medium">
-            +16.3 km² canopy expansion
-          </div>
-        </div>
-
-        <div className="p-4 rounded-2xl bg-white border border-black/8 card-hover shadow-sm">
-          <div className="flex items-center justify-between text-xs text-[#6F6F6F] mb-1">
-            <span>VEGETATION HEALTH</span>
-            <TrendingUp className="w-3.5 h-3.5 text-[#35624B]" />
-          </div>
-          <div className="text-3xl font-serif-display font-bold text-[#183A2A]">
-            {changeStats.ndviImprovement}
-          </div>
-          <div className="text-xs text-[#35624B] mt-1 font-medium">
-            NDVI increase from 0.58 to 0.62
-          </div>
-        </div>
-
-        <div className="p-4 rounded-2xl bg-white border border-black/8 card-hover shadow-sm">
-          <div className="flex items-center justify-between text-xs text-[#6F6F6F] mb-1">
-            <span>WATER STORAGE</span>
-            <TrendingUp className="w-3.5 h-3.5 text-[#4D8FA8]" />
-          </div>
-          <div className="text-3xl font-serif-display font-bold text-[#4D8FA8]">
-            {changeStats.waterStorage}
-          </div>
-          <div className="text-xs text-[#4D8FA8] mt-1 font-medium">
-            27 conservation structures added
-          </div>
-        </div>
-
-        <div className="p-4 rounded-2xl bg-white border border-black/8 card-hover shadow-sm">
-          <div className="flex items-center justify-between text-xs text-[#6F6F6F] mb-1">
-            <span>LAND RESTORATION</span>
-            <TrendingUp className="w-3.5 h-3.5 text-amber-700" />
-          </div>
-          <div className="text-3xl font-serif-display font-bold text-amber-800">
-            {changeStats.restoredLand}
-          </div>
-          <div className="text-xs text-amber-700 mt-1 font-medium">
-            Gully & sheet erosion mitigated
-          </div>
-        </div>
+        ))}
       </div>
     </div>
   );

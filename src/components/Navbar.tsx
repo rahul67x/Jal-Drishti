@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Menu, X } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Menu, X, LayoutGrid } from 'lucide-react';
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -44,7 +45,18 @@ export default function Navbar() {
           ))}
         </nav>
 
-        <div className="hidden lg:block">
+        {/*
+          Dashboard is a route, not a scroll anchor, so it uses Link rather than
+          an <a href="#..."> like the section links above.
+        */}
+        <div className="hidden lg:flex items-center gap-2.5">
+          <Link
+            to="/sites"
+            className="flex items-center gap-1.5 rounded-full border border-[#183A2A]/20 bg-white/70 text-[#183A2A] px-4 py-2.5 text-sm font-medium btn-hover-scale hover:border-[#183A2A]/50 transition-colors"
+          >
+            <LayoutGrid size={15} />
+            Dashboard
+          </Link>
           <a href="#analytics" className="rounded-full bg-[#183A2A] text-white px-5 py-2.5 text-sm font-medium btn-hover-scale inline-block">
             Launch Platform
           </a>
@@ -75,6 +87,14 @@ export default function Navbar() {
               {link.name}
             </a>
           ))}
+          <Link
+            to="/sites"
+            onClick={() => setIsOpen(false)}
+            className={`flex items-center gap-2 text-2xl font-medium stagger-5 text-[#183A2A] ${isOpen ? 'visible' : ''}`}
+          >
+            <LayoutGrid size={20} />
+            Dashboard
+          </Link>
           <a href="#analytics" onClick={() => setIsOpen(false)} className={`mt-4 rounded-full bg-[#183A2A] text-white px-8 py-4 text-lg font-medium stagger-5 ${isOpen ? 'visible' : ''}`}>
             Launch Platform
           </a>
