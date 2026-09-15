@@ -2364,3 +2364,74 @@ written down in Entry 013 and still caught me out, costing several wasted
 checks. Match `innerText` case-insensitively, always.
 
 ---
+
+### 2026-09-15 — Entry 017 — Deployment push to premsonawane1407-dev/jal-drishti
+
+**Why this was hard.** Two attempts to push the work to Prem's own GitHub
+failed, the second one server-side:
+
+```
+remote: error: GH008: Your push referenced at least 1 unknown Git LFS object:
+remote:   70c62670b331f1cbd06935374d296f545acd698d13117e4e66483c448f2bd9ad
+! [remote rejected] feat/backend-supabase -> main (pre-receive hook declined)
+```
+
+The cause was in history, not in the working tree. Commit `4cbb90b` tracked
+`public/gis/LULC_2026.tif` (482 MB) through Git LFS. The pointer was committed
+but the 482 MB of actual content was never uploaded to any LFS server, and the
+file no longer exists on disk. GitHub's pre-receive hook walks every commit
+being pushed, finds a pointer with no object behind it, and refuses the whole
+push. Setting `lfs.allowincompletepush true` silences the *client* warning and
+changes nothing about the server's decision — that is why the first fix did
+not work.
+
+**Fix: an orphan commit.** Since the bad object is only reachable through
+history, and the deployment does not need that history, the branch was rebuilt
+with no parent:
+
+```bash
+git remote set-url mine https://github.com/premsonawane1407-dev/jal-drishti.git
+git rm --cached .gitattributes && rm -f .gitattributes
+git checkout --orphan deploy
+git add -A
+git commit -F <message>
+git push mine deploy:main --force
+git checkout feat/backend-supabase        # local history untouched
+```
+
+`.gitattributes` held exactly one line, the now-dead LFS rule for
+`LULC_2026.tif`, so removing it cost nothing and stopped the filter from
+re-engaging. It still exists on `feat/backend-supabase`; only the pushed
+snapshot drops it.
+
+**Checks run before pushing**, because a force-push to a public repo is not
+reversible from here:
+
+| Check | Result |
+|---|---|
+| Working tree clean before starting | yes |
+| Staged LFS pointer files | 0 — every staged file scanned for the `version https://git-lfs` header |
+| `.env.local` / `.env.seed` staged | no — only `.env.example` and `.env.seed.example`, both placeholders with empty values |
+| `sb_secret_` / service_role key in staged content | none — the only matches are the warning comments in `.env.seed.example` and the guard in `src/lib/supabase.ts` |
+| Files / size | 125 files, 12 MB |
+| What was overwritten | `fbf209a Initial commit`, an empty unrelated commit — nothing of value destroyed |
+
+**Result.** `main` on `premsonawane1407-dev/jal-drishti` is now
+`e935b1d52eb5c83b4ecc7c9584bd94b69db9e224`. The local `feat/backend-supabase`
+branch is unchanged at `5a51c02` with its full history; the `deploy` branch was
+deleted after pushing.
+
+**Note on the remote name.** The repository was renamed by GitHub to lowercase
+`jal-drishti`. The old capitalised URL still redirects for fetches but is worth
+not relying on, so the `mine` remote was repointed.
+
+#### Lesson
+
+A Git LFS pointer whose bytes were never uploaded is permanently unpushable.
+No client-side flag fixes it, because the rejection happens on the server. The
+options are to rewrite history (`git filter-repo`) or, when the history is not
+needed, to discard it with an orphan commit. Prefer the orphan commit for a
+deployment snapshot: it is one command, cannot half-succeed, and leaves the
+real branch untouched.
+
+---
