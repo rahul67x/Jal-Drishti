@@ -1,6 +1,6 @@
 import React, { useState, useMemo, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Trees, Droplets, MapPin, Layers, ChevronDown } from 'lucide-react';
+import { Trees, Droplets, MapPin, Layers, ChevronDown, Upload } from 'lucide-react';
 import MetricCard from './MetricCard';
 import AnalyticsTabs from './AnalyticsTabs';
 import type { AnalyticsTabId } from './AnalyticsTabs';
@@ -11,6 +11,17 @@ import BeforeAfterComparison from './BeforeAfterComparison';
 import { ChangeDetectionBanner } from './ChangeDetection';
 import AIInsights from './AIInsights';
 import DataSources from './DataSources';
+import { TrendConfidenceCard } from './TrendConfidenceCard';
+import { WatershedHealthReportCard } from './WatershedHealthReportCard';
+import { PhotoSatelliteValidationCard } from './PhotoSatelliteValidationCard';
+import { InterventionImpactTool } from './InterventionImpactTool';
+import { LulcTransitionMatrix } from './LulcTransitionMatrix';
+import { SiteComparisonDashboard } from './SiteComparisonDashboard';
+import { SoilErosionSimulator } from './SoilErosionSimulator';
+import { ClimateStressNormalizer } from './ClimateStressNormalizer';
+import { SmartInterventionRecommender } from './SmartInterventionRecommender';
+import { MobileFieldSurveyPortal } from '../../features/geotag/MobileFieldSurveyPortal';
+import { DirectRasterUploader } from '../../features/rasters/DirectRasterUploader';
 import { Spinner, ErrorState, EmptyState } from '../ui/States';
 import { useSites, useSite, useSiteMetrics } from '../../features/sites/useSites';
 import { useSiteRasters } from '../../features/rasters/useSiteRasters';
@@ -55,6 +66,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<AnalyticsTabId>('overview');
   const [baseLayer, setBaseLayer] = useState<BaseLayerType>('satellite');
+  const [uploaderOpen, setUploaderOpen] = useState(false);
 
   // The dashboard owns all layer visibility, including the two water years.
   // The map derives 'waterBodies' from them rather than storing it twice.
@@ -263,7 +275,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
       id="analytics"
       className="py-24 sm:py-32 px-4 sm:px-8 lg:px-16 bg-[#F7F9F6] border-y border-black/5"
     >
-      <div className="max-w-7xl mx-auto space-y-12">
+      <div className="max-w-7xl mx-auto space-y-10">
         {showHeading && (
           <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 pb-6 border-b border-black/8">
             <div>
@@ -280,11 +292,15 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
               </p>
             </div>
 
-            {/* Site selector — real navigation, not a decorative dropdown */}
-            <div className="flex flex-col items-start lg:items-end gap-1.5">
-              <div className="text-[11px] uppercase font-semibold text-[#6F6F6F] tracking-wider">
-                Selected Study Area
-              </div>
+            {/* Site selector + Direct GeoTIFF Upload button */}
+            <div className="flex flex-col items-start lg:items-end gap-2">
+              <button
+                onClick={() => setUploaderOpen(true)}
+                className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#183A2A] text-white text-xs font-semibold hover:bg-[#183A2A]/90 transition-colors shadow-sm"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                Direct GeoTIFF Upload
+              </button>
               <div className="relative inline-block">
                 <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-white border border-black/10 shadow-sm hover:border-[#35624B] transition-colors cursor-pointer">
                   <MapPin className="w-4 h-4 text-[#35624B]" />
@@ -340,14 +356,46 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
 
         {site && (
           <>
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            {/* Trend Claim Confidence Card, Watershed Health Report Card, and Geo-Photo Ground-Truth Validation */}
+            <div className="space-y-6">
+              <TrendConfidenceCard
+                metrics={metrics}
+                geotagged={geotagQuery.data ?? []}
+                satelliteScenes={satelliteQuery.data ?? []}
+                rasters={rastersQuery.data ?? []}
+              />
+
+              <WatershedHealthReportCard
+                site={site}
+                metrics={metrics}
+                geotagged={geotagQuery.data ?? []}
+                satelliteScenes={satelliteQuery.data ?? []}
+              />
+
+              <PhotoSatelliteValidationCard
+                geotagged={geotagQuery.data ?? []}
+                metrics={metrics}
+                rasters={rastersQuery.data ?? []}
+              />
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-4">
               <AnalyticsTabs activeTab={activeTab} onSelectTab={handleTabSelect} />
-              {gridMeta && (
-                <div className="text-xs text-[#6F6F6F] flex items-center gap-2">
-                  <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
-                  <span className="font-mono">{gridMeta}</span>
-                </div>
-              )}
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setUploaderOpen(true)}
+                  className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#183A2A] text-white text-xs font-semibold hover:bg-[#183A2A]/90 transition-colors shadow-xs"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  Direct GeoTIFF Upload
+                </button>
+                {gridMeta && (
+                  <div className="text-xs text-[#6F6F6F] flex items-center gap-2">
+                    <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
+                    <span className="font-mono">{gridMeta}</span>
+                  </div>
+                )}
+              </div>
             </div>
 
             {metricsQuery.isLoading ? (
@@ -367,9 +415,9 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
 
             {activeTab === 'report' ? (
               <div data-tour="report-panel">
-              <Suspense fallback={<Spinner label="Loading report builder" />}>
-                <ReportPanel site={site} />
-              </Suspense>
+                <Suspense fallback={<Spinner label="Loading report builder" />}>
+                  <ReportPanel site={site} />
+                </Suspense>
               </div>
             ) : activeTab === 'satellite' ? (
               <div className="space-y-6">
@@ -406,6 +454,34 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
             )}
 
             <div className="space-y-8">
+              <SoilErosionSimulator
+                site={site}
+                metrics={metrics}
+              />
+
+              <ClimateStressNormalizer
+                site={site}
+                metrics={metrics}
+              />
+
+              <SmartInterventionRecommender
+                site={site}
+                metrics={metrics}
+              />
+
+              <MobileFieldSurveyPortal
+                site={site}
+              />
+
+              <InterventionImpactTool
+                geotagged={geotagQuery.data ?? []}
+                metrics={metrics}
+              />
+
+              <LulcTransitionMatrix
+                metrics={metrics}
+              />
+
               <AnalyticsCharts
                 slug={site.slug}
                 category={
@@ -417,8 +493,20 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                 }
               />
               <AIInsights siteId={site.id} />
+              
+              <SiteComparisonDashboard
+                sites={sitesQuery.data ?? []}
+                activeMetrics={metrics}
+              />
+
               <DataSources site={site} />
             </div>
+
+            <DirectRasterUploader
+              siteId={site.id}
+              isOpen={uploaderOpen}
+              onClose={() => setUploaderOpen(false)}
+            />
           </>
         )}
       </div>

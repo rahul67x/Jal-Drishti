@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useParams, useLocation } from 'react-router-dom';
-import { ArrowLeft, MapPin, Ruler, Globe2, CheckCircle2, AlertTriangle, Settings } from 'lucide-react';
+import { ArrowLeft, MapPin, Ruler, Globe2, CheckCircle2, AlertTriangle, Settings, Upload } from 'lucide-react';
 import { useSite, useSiteMetrics } from './useSites';
 import { Spinner, ErrorState, EmptyState } from '../../components/ui/States';
 import AnalyticsDashboard from '../../components/analytics/AnalyticsDashboard';
@@ -8,6 +8,7 @@ import { formatKm2, formatLatLng, formatSignedHa } from '../../lib/format';
 import AuthButton from '../auth/AuthButton';
 import { useAuth } from '../auth/AuthContext';
 import EditSiteDialog from './EditSiteDialog';
+import { DirectRasterUploader } from '../rasters/DirectRasterUploader';
 
 /**
  * A single site's analysis workspace at /sites/:slug.
@@ -20,6 +21,7 @@ export const SiteWorkspacePage: React.FC = () => {
   const { canEdit } = useAuth();
   const location = useLocation();
   const [editOpen, setEditOpen] = React.useState(false);
+  const [uploaderOpen, setUploaderOpen] = React.useState(false);
   // The Hero's "Watch the Analysis" button navigates here with this flag set.
   const [tourOpen, setTourOpen] = React.useState(
     Boolean((location.state as { startTour?: boolean } | null)?.startTour)
@@ -89,6 +91,13 @@ export const SiteWorkspacePage: React.FC = () => {
               All sites
             </Link>
             <div className="flex items-center gap-2">
+              <button
+                onClick={() => setUploaderOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#183A2A] text-white text-xs font-semibold hover:bg-[#183A2A]/90 transition-colors shadow-xs"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                Direct GeoTIFF Upload
+              </button>
               {canEdit && (
                 <button
                   onClick={() => setEditOpen(true)}
@@ -203,6 +212,13 @@ export const SiteWorkspacePage: React.FC = () => {
       />
 
       {editOpen && <EditSiteDialog site={site} onClose={() => setEditOpen(false)} />}
+      {uploaderOpen && (
+        <DirectRasterUploader
+          siteId={site.id}
+          isOpen={uploaderOpen}
+          onClose={() => setUploaderOpen(false)}
+        />
+      )}
     </div>
   );
 };

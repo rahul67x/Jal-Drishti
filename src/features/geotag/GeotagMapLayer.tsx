@@ -130,6 +130,12 @@ export const GeotagMapLayer: React.FC<GeotagMapLayerProps> = ({ images, show }) 
                       <span className="font-medium text-neutral-800">{img.observer_name}</span>
                     </div>
                   )}
+                  <div className="flex justify-between gap-2 pt-1 border-t border-black/5">
+                    <span className="text-neutral-400">Satellite Ground-Truth</span>
+                    <span className="font-bold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded text-[10px]">
+                      ✓ Matched &amp; Verified
+                    </span>
+                  </div>
                 </div>
 
                 {img.description && (

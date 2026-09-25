@@ -2,6 +2,8 @@ import React from 'react';
 import { Document, Page, Text, View, Image, StyleSheet } from '@react-pdf/renderer';
 import type { ReportData } from './reportData';
 import { formatHa, formatKm2, formatPct, formatSignedHa, formatCount, formatDate, formatLatLng } from '../../lib/format';
+import { calculateSiteConfidence } from '../insights/confidence';
+import { calculateWatershedReportCard } from '../insights/reportCard';
 
 /**
  * The PDF site report.
@@ -37,26 +39,26 @@ const s = StyleSheet.create({
   coverPage: { padding: 0, fontSize: 9, color: C.body },
 
   // Cover
-  coverBand: { backgroundColor: C.green, paddingHorizontal: 48, paddingTop: 90, paddingBottom: 44 },
-  coverEyebrow: { fontSize: 8, color: '#A8C5A0', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 14 },
-  coverTitle: { fontSize: 34, color: C.paper, marginBottom: 6 },
-  coverSub: { fontSize: 12, color: '#C7D9C2' },
-  coverBody: { paddingHorizontal: 48, paddingTop: 32 },
+  coverBand: { backgroundColor: C.green, paddingHorizontal: 48, paddingTop: 60, paddingBottom: 36 },
+  coverEyebrow: { fontSize: 8, color: '#A8C5A0', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 12 },
+  coverTitle: { fontSize: 30, color: C.paper, marginBottom: 4 },
+  coverSub: { fontSize: 11, color: '#C7D9C2' },
+  coverBody: { paddingHorizontal: 48, paddingTop: 20 },
 
-  h1: { fontSize: 17, color: C.green, marginBottom: 3 },
-  h2: { fontSize: 12, color: C.ink, marginTop: 16, marginBottom: 6 },
+  h1: { fontSize: 16, color: C.green, marginBottom: 3 },
+  h2: { fontSize: 11, color: C.ink, marginTop: 12, marginBottom: 5 },
   eyebrow: { fontSize: 7, color: C.muted, letterSpacing: 1.4, textTransform: 'uppercase', marginBottom: 3 },
-  p: { marginBottom: 6 },
+  p: { marginBottom: 5 },
   small: { fontSize: 7.5, color: C.muted },
   mono: { fontFamily: 'Courier', fontSize: 7.5 },
 
-  rule: { borderBottomWidth: 1, borderBottomColor: C.line, marginVertical: 10 },
+  rule: { borderBottomWidth: 1, borderBottomColor: C.line, marginVertical: 8 },
 
   // Key-value grid
   kvRow: { flexDirection: 'row', flexWrap: 'wrap' },
-  kv: { width: '33.33%', marginBottom: 10, paddingRight: 8 },
+  kv: { width: '33.33%', marginBottom: 8, paddingRight: 8 },
   kvLabel: { fontSize: 7, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 2 },
-  kvValue: { fontSize: 10.5, color: C.ink },
+  kvValue: { fontSize: 10, color: C.ink },
 
   // Tables
   table: { marginTop: 6, borderWidth: 1, borderColor: C.line, borderRadius: 3 },
@@ -67,11 +69,17 @@ const s = StyleSheet.create({
   cellHead: { paddingVertical: 5, paddingHorizontal: 7, fontSize: 7, color: C.muted, letterSpacing: 0.6, textTransform: 'uppercase' },
   num: { textAlign: 'right' },
 
-  // Callouts
-  callout: { padding: 9, borderRadius: 4, borderWidth: 1, marginTop: 8 },
+  // Callouts & Health Box
+  callout: { padding: 8, borderRadius: 4, borderWidth: 1, marginTop: 6 },
   ok: { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' },
   warn: { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' },
   info: { backgroundColor: C.panel, borderColor: C.line },
+
+  // Health Report Box in PDF
+  healthBox: { padding: 10, borderRadius: 5, borderWidth: 1, borderColor: '#A7F3D0', backgroundColor: '#F0FDF4', marginTop: 8, marginBottom: 6 },
+  healthHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  healthGradeBadge: { fontSize: 18, color: '#065F46', fontFamily: 'Helvetica-Bold' },
+  healthStatusText: { fontSize: 9, color: '#065F46', fontFamily: 'Helvetica-Bold' },
 
   // Charts
   chartRow: { flexDirection: 'row', alignItems: 'flex-end', height: 92, marginTop: 8, marginBottom: 4 },
@@ -151,6 +159,10 @@ export const ReportDocument: React.FC<{ data: ReportData; omitted?: { photos: nu
   const statRasters = rasters.filter((r) => r.stats.length > 0);
   const gridLayer = rasters.find((r) => r.pixel_size_m && r.total_pixels);
 
+  // Compute Scientific Confidence Score & Health Report Card for PDF
+  const confidence = calculateSiteConfidence(m, geotagged, satellite, rasters);
+  const reportCard = calculateWatershedReportCard(site, m, geotagged, satellite);
+
   return (
     <Document
       title={`JalDrishti — ${site.name} Site Report`}
@@ -170,10 +182,43 @@ export const ReportDocument: React.FC<{ data: ReportData; omitted?: { photos: nu
         </View>
 
         <View style={s.coverBody}>
-          <Text style={s.h2}>Site Analysis Report</Text>
-          <Text style={[s.p, { color: C.muted }]}>
-            Generated {formatDate(data.generatedAt)} from satellite-derived raster analysis.
-            All figures are computed from the pixel counts recorded in the source rasters.
+          <Text style={s.h2}>Executive Watershed Health &amp; Evidence Verdict</Text>
+
+          {/* Health Report Card Box */}
+          <View style={s.healthBox}>
+            <View style={s.healthHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={s.healthGradeBadge}>Grade {reportCard.overallGrade}</Text>
+                <Text style={{ fontSize: 9, color: '#065F46', marginLeft: 8 }}>
+                  ({reportCard.starRating} / 5.0 Rating)
+                </Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={{ fontSize: 8, color: '#065F46', marginRight: 4 }}>Confidence Score:</Text>
+                <Text style={{ fontSize: 10, color: '#065F46', fontFamily: 'Helvetica-Bold' }}>
+                  {confidence.scorePct}% ({confidence.level})
+                </Text>
+              </View>
+            </View>
+
+            <Text style={{ fontSize: 8.5, color: '#064E3B', marginBottom: 4 }}>
+              {reportCard.aiSummaryParagraph}
+            </Text>
+
+            <View style={{ flexDirection: 'row', marginTop: 4, borderTopWidth: 0.5, borderTopColor: '#A7F3D0', paddingTop: 4 }}>
+              {reportCard.componentScores.map((c) => (
+                <View key={c.key} style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 7, color: '#047857', textTransform: 'uppercase' }}>{c.title}</Text>
+                  <Text style={{ fontSize: 8.5, color: '#065F46', fontFamily: 'Helvetica-Bold' }}>
+                    {c.score}/100 (Grade {c.grade})
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+
+          <Text style={[s.p, { color: C.muted, marginTop: 4 }]}>
+            Report generated {formatDate(data.generatedAt)} from multi-spectral satellite rasters &amp; field evidence.
           </Text>
 
           <View style={s.rule} />
