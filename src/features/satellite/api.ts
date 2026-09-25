@@ -28,13 +28,20 @@ export async function listSatelliteImages(siteId: string): Promise<SatelliteImag
 export function satelliteImageUrl(
   row: Pick<SatelliteImageRow, 'storage_bucket' | 'storage_path'>
 ): string {
+  if (row.storage_path.startsWith('/') || row.storage_path.startsWith('http')) {
+    return row.storage_path;
+  }
   return publicUrl(row.storage_bucket, row.storage_path);
 }
 
 export function satelliteThumbUrl(
   row: Pick<SatelliteImageRow, 'storage_bucket' | 'storage_path' | 'thumbnail_path'>
 ): string {
-  return publicUrl(row.storage_bucket, row.thumbnail_path ?? row.storage_path);
+  const path = row.thumbnail_path ?? row.storage_path;
+  if (path.startsWith('/') || path.startsWith('http')) {
+    return path;
+  }
+  return publicUrl(row.storage_bucket, path);
 }
 
 export interface SatelliteUploadInput {

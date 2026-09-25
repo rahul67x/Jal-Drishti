@@ -512,6 +512,43 @@ on conflict (site_id, layer_key) do update set
   display_order = excluded.display_order,
   is_visible_by_default = excluded.is_visible_by_default;
 
+-- ---------------------------------------------------------------------------
+-- Satellite Scenes (2023 & 2026) for Multitemporal Comparison
+-- ---------------------------------------------------------------------------
+insert into public.satellite_images (
+  id, site_id, storage_bucket, storage_path, title, caption,
+  sensor, product, acquisition_date, year, resolution_m, cloud_cover_pct,
+  is_overlay, mime_type, file_size_bytes, display_order, include_in_report
+) values (
+  'a0000000-0000-0000-0000-000000002023',
+  (select id from public.sites where slug = 'saswad'),
+  'site-rasters', 'saswad/veg_positive_2023.tif',
+  'Sentinel-2 L2A Multispectral Scene (2023 Baseline)',
+  'Post-monsoon multi-spectral Sentinel-2 capture showing 12.53 ha surface water extent and dense vegetation across Saswad.',
+  'Sentinel-2B', 'Multi-Spectral / Baseline 2023',
+  '2023-01-15', 2023, 10.0, 0.5,
+  false, 'image/png', 1492024, 1, true
+)
+on conflict (id) do update set
+  title = excluded.title, caption = excluded.caption, year = excluded.year;
+
+insert into public.satellite_images (
+  id, site_id, storage_bucket, storage_path, title, caption,
+  sensor, product, acquisition_date, year, resolution_m, cloud_cover_pct,
+  is_overlay, mime_type, file_size_bytes, display_order, include_in_report
+) values (
+  'a0000000-0000-0000-0000-000000002026',
+  (select id from public.sites where slug = 'saswad'),
+  'site-rasters', 'saswad/veg_positive_2026.tif',
+  'Sentinel-2 L2A Multispectral Scene (2026 Current)',
+  'Recent Sentinel-2 capture showing 3.03 ha surface water retention (-75.8% drop) and vegetation canopy transition.',
+  'Sentinel-2C', 'Multi-Spectral / Current 2026',
+  '2026-01-15', 2026, 10.0, 0.1,
+  false, 'image/png', 1492024, 2, true
+)
+on conflict (id) do update set
+  title = excluded.title, caption = excluded.caption, year = excluded.year;
+
 commit;
 
 -- ---------------------------------------------------------------------------

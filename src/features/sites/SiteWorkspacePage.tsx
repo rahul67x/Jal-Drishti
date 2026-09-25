@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useParams, useLocation } from 'react-router-dom';
-import { ArrowLeft, MapPin, Ruler, Globe2, CheckCircle2, AlertTriangle, Settings, Upload } from 'lucide-react';
+import { ArrowLeft, MapPin, Ruler, Globe2, CheckCircle2, AlertTriangle, Settings, Upload, Smartphone } from 'lucide-react';
 import { useSite, useSiteMetrics } from './useSites';
 import { Spinner, ErrorState, EmptyState } from '../../components/ui/States';
 import AnalyticsDashboard from '../../components/analytics/AnalyticsDashboard';
@@ -9,6 +9,7 @@ import AuthButton from '../auth/AuthButton';
 import { useAuth } from '../auth/AuthContext';
 import EditSiteDialog from './EditSiteDialog';
 import { DirectRasterUploader } from '../rasters/DirectRasterUploader';
+import { MobileFieldSurveyPortal } from '../geotag/MobileFieldSurveyPortal';
 
 /**
  * A single site's analysis workspace at /sites/:slug.
@@ -22,6 +23,7 @@ export const SiteWorkspacePage: React.FC = () => {
   const location = useLocation();
   const [editOpen, setEditOpen] = React.useState(false);
   const [uploaderOpen, setUploaderOpen] = React.useState(false);
+  const [mobilePortalOpen, setMobilePortalOpen] = React.useState(false);
   // The Hero's "Watch the Analysis" button navigates here with this flag set.
   const [tourOpen, setTourOpen] = React.useState(
     Boolean((location.state as { startTour?: boolean } | null)?.startTour)
@@ -91,6 +93,13 @@ export const SiteWorkspacePage: React.FC = () => {
               All sites
             </Link>
             <div className="flex items-center gap-2">
+              <button
+                onClick={() => setMobilePortalOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-700 text-white text-xs font-semibold hover:bg-emerald-800 transition-colors shadow-xs"
+              >
+                <Smartphone className="w-3.5 h-3.5" />
+                Mobile Survey
+              </button>
               <button
                 onClick={() => setUploaderOpen(true)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#183A2A] text-white text-xs font-semibold hover:bg-[#183A2A]/90 transition-colors shadow-xs"
@@ -218,6 +227,16 @@ export const SiteWorkspacePage: React.FC = () => {
           isOpen={uploaderOpen}
           onClose={() => setUploaderOpen(false)}
         />
+      )}
+      {mobilePortalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="relative w-full max-w-lg my-8">
+            <MobileFieldSurveyPortal
+              site={site}
+              onClose={() => setMobilePortalOpen(false)}
+            />
+          </div>
+        </div>
       )}
     </div>
   );

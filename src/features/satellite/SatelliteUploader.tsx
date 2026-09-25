@@ -24,15 +24,19 @@ interface Draft {
 }
 
 function draftFrom(file: File): Draft {
+  const title = file.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').slice(0, 120);
+  const yearMatch = title.match(/(20\d\d|19\d\d)/);
+  const yearStr = yearMatch ? yearMatch[1] : '';
+
   return {
     file,
     previewUrl: URL.createObjectURL(file),
-    title: file.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').slice(0, 120),
+    title,
     caption: '',
     sensor: 'Sentinel-2',
     product: 'True Colour',
-    acquisitionDate: '',
-    year: '',
+    acquisitionDate: yearStr ? `${yearStr}-01-15` : '',
+    year: yearStr,
     resolutionM: '10',
     cloudCoverPct: '',
     includeInReport: true,

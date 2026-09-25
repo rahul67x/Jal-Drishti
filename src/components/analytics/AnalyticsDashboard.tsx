@@ -1,6 +1,6 @@
 import React, { useState, useMemo, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Trees, Droplets, MapPin, Layers, ChevronDown, Upload } from 'lucide-react';
+import { Trees, Droplets, MapPin, Layers, ChevronDown, Upload, Smartphone } from 'lucide-react';
 import MetricCard from './MetricCard';
 import AnalyticsTabs from './AnalyticsTabs';
 import type { AnalyticsTabId } from './AnalyticsTabs';
@@ -14,11 +14,13 @@ import DataSources from './DataSources';
 import { TrendConfidenceCard } from './TrendConfidenceCard';
 import { WatershedHealthReportCard } from './WatershedHealthReportCard';
 import { PhotoSatelliteValidationCard } from './PhotoSatelliteValidationCard';
+import { MultilingualAudioSummary } from './MultilingualAudioSummary';
 import { InterventionImpactTool } from './InterventionImpactTool';
 import { LulcTransitionMatrix } from './LulcTransitionMatrix';
 import { SiteComparisonDashboard } from './SiteComparisonDashboard';
 import { SoilErosionSimulator } from './SoilErosionSimulator';
 import { ClimateStressNormalizer } from './ClimateStressNormalizer';
+import { CropWaterRequirementCard } from './CropWaterRequirementCard';
 import { SmartInterventionRecommender } from './SmartInterventionRecommender';
 import { MobileFieldSurveyPortal } from '../../features/geotag/MobileFieldSurveyPortal';
 import { DirectRasterUploader } from '../../features/rasters/DirectRasterUploader';
@@ -67,6 +69,8 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
   const [activeTab, setActiveTab] = useState<AnalyticsTabId>('overview');
   const [baseLayer, setBaseLayer] = useState<BaseLayerType>('satellite');
   const [uploaderOpen, setUploaderOpen] = useState(false);
+  const [workspaceCategory, setWorkspaceCategory] = useState<'overview' | 'soil_climate' | 'smart_planning'>('overview');
+  const [mobilePortalOpen, setMobilePortalOpen] = useState(false);
 
   // The dashboard owns all layer visibility, including the two water years.
   // The map derives 'waterBodies' from them rather than storing it twice.
@@ -115,6 +119,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
    * compiling rather than silently doing nothing.
    */
   const applyTourStep = (step: TourStep) => {
+    setWorkspaceCategory('overview');
     if (step.apply?.tab) setActiveTab(step.apply.tab);
     if (step.apply?.layers) patchLayers(step.apply.layers);
   };
@@ -356,157 +361,264 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
 
         {site && (
           <>
-            {/* Trend Claim Confidence Card, Watershed Health Report Card, and Geo-Photo Ground-Truth Validation */}
-            <div className="space-y-6">
-              <TrendConfidenceCard
-                metrics={metrics}
-                geotagged={geotagQuery.data ?? []}
-                satelliteScenes={satelliteQuery.data ?? []}
-                rasters={rastersQuery.data ?? []}
-              />
-
-              <WatershedHealthReportCard
-                site={site}
-                metrics={metrics}
-                geotagged={geotagQuery.data ?? []}
-                satelliteScenes={satelliteQuery.data ?? []}
-              />
-
-              <PhotoSatelliteValidationCard
-                geotagged={geotagQuery.data ?? []}
-                metrics={metrics}
-                rasters={rastersQuery.data ?? []}
-              />
-            </div>
-
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-4">
-              <AnalyticsTabs activeTab={activeTab} onSelectTab={handleTabSelect} />
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => setUploaderOpen(true)}
-                  className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#183A2A] text-white text-xs font-semibold hover:bg-[#183A2A]/90 transition-colors shadow-xs"
-                >
-                  <Upload className="w-3.5 h-3.5" />
-                  Direct GeoTIFF Upload
-                </button>
-                {gridMeta && (
-                  <div className="text-xs text-[#6F6F6F] flex items-center gap-2">
-                    <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
-                    <span className="font-mono">{gridMeta}</span>
+            {/* Beginner-Friendly Workspace Category Navigation (Site View Only) */}
+            {!showHeading && (
+              <div className="bg-white rounded-2xl p-3 sm:p-4 border border-black/8 shadow-xs flex flex-wrap items-center justify-between gap-3 mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider hidden sm:inline">Workspace Focus:</span>
+                  <div className="flex flex-wrap items-center gap-1.5 bg-slate-100/80 p-1 rounded-xl text-xs font-semibold">
+                    <button
+                      type="button"
+                      onClick={() => setWorkspaceCategory('overview')}
+                      className={`px-3.5 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
+                        workspaceCategory === 'overview'
+                          ? 'bg-[#183A2A] text-white shadow-xs font-bold'
+                          : 'text-slate-600 hover:text-slate-900 bg-white/50'
+                      }`}
+                    >
+                      <span>🏆</span> Overview &amp; Map
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setWorkspaceCategory('soil_climate')}
+                      className={`px-3.5 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
+                        workspaceCategory === 'soil_climate'
+                          ? 'bg-[#183A2A] text-white shadow-xs font-bold'
+                          : 'text-slate-600 hover:text-slate-900 bg-white/50'
+                      }`}
+                    >
+                      <span>⛰️</span> Soil &amp; Hydrology Risk
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setWorkspaceCategory('smart_planning')}
+                      className={`px-3.5 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
+                        workspaceCategory === 'smart_planning'
+                          ? 'bg-[#183A2A] text-white shadow-xs font-bold'
+                          : 'text-slate-600 hover:text-slate-900 bg-white/50'
+                      }`}
+                    >
+                      <span>🤖</span> AI Smart Planning
+                    </button>
                   </div>
-                )}
-              </div>
-            </div>
+                </div>
 
-            {metricsQuery.isLoading ? (
-              <Spinner label="Computing metrics" />
-            ) : cards.length > 0 ? (
-              <div data-tour="metric-cards" className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
-                {cards.map((card) => (
-                  <MetricCard key={card.label} {...card} />
-                ))}
+                <button
+                  type="button"
+                  onClick={() => setMobilePortalOpen(true)}
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition-all shadow-xs"
+                >
+                  <Smartphone className="w-4 h-4" />
+                  📱 Mobile Survey Portal
+                </button>
               </div>
-            ) : (
-              <EmptyState
-                title="No metrics for this site yet"
-                hint="Raster statistics have not been seeded, so there is nothing to compute from."
-              />
             )}
 
-            {activeTab === 'report' ? (
-              <div data-tour="report-panel">
-                <Suspense fallback={<Spinner label="Loading report builder" />}>
-                  <ReportPanel site={site} />
-                </Suspense>
-              </div>
-            ) : activeTab === 'satellite' ? (
-              <div className="space-y-6">
-                <SatelliteUploader site={site} />
-                <SatelliteGallery site={site} />
-              </div>
-            ) : activeTab === 'field' ? (
-              <div data-tour="field-panel" className="space-y-6">
-                <GeotagUploader site={site} />
-                <GeotagGallery site={site} />
-              </div>
-            ) : activeTab === 'change' ? (
-              <div className="space-y-6">
-                <div data-tour="change-banner"><ChangeDetectionBanner metrics={metrics} /></div>
-                <BeforeAfterComparison metrics={metrics} satellite={satelliteQuery.data ?? []} site={site} />
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {layers.changeDetection && <ChangeDetectionBanner metrics={metrics} />}
-                {rastersQuery.isLoading ? (
-                  <Spinner label="Loading map layers" />
-                ) : (
-                  <InteractiveMap
-                    site={site}
-                    rasters={rastersQuery.data ?? []}
+            {/* Overview & Map Category */}
+            {(showHeading || workspaceCategory === 'overview') && (
+              <>
+                {/* Trend Claim Confidence Card, Watershed Health Report Card, and Geo-Photo Ground-Truth Validation */}
+                <div className="space-y-6">
+                  <TrendConfidenceCard
+                    metrics={metrics}
                     geotagged={geotagQuery.data ?? []}
-                    baseLayer={baseLayer}
-                    onSelectBaseLayer={setBaseLayer}
-                    layers={layers}
-                    onLayersChange={patchLayers}
+                    satelliteScenes={satelliteQuery.data ?? []}
+                    rasters={rastersQuery.data ?? []}
+                  />
+
+                  <WatershedHealthReportCard
+                    site={site}
+                    metrics={metrics}
+                    geotagged={geotagQuery.data ?? []}
+                    satelliteScenes={satelliteQuery.data ?? []}
+                  />
+
+                  {!showHeading && (
+                    <MultilingualAudioSummary
+                      site={site}
+                      metrics={metrics}
+                    />
+                  )}
+
+                  {!showHeading && (
+                    <PhotoSatelliteValidationCard
+                      geotagged={geotagQuery.data ?? []}
+                      metrics={metrics}
+                      rasters={rastersQuery.data ?? []}
+                    />
+                  )}
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-4">
+                  <AnalyticsTabs activeTab={activeTab} onSelectTab={handleTabSelect} />
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => setUploaderOpen(true)}
+                      className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#183A2A] text-white text-xs font-semibold hover:bg-[#183A2A]/90 transition-colors shadow-xs"
+                    >
+                      <Upload className="w-3.5 h-3.5" />
+                      Direct GeoTIFF Upload
+                    </button>
+                    {gridMeta && (
+                      <div className="text-xs text-[#6F6F6F] flex items-center gap-2">
+                        <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
+                        <span className="font-mono">{gridMeta}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {metricsQuery.isLoading ? (
+                  <Spinner label="Computing metrics" />
+                ) : cards.length > 0 ? (
+                  <div data-tour="metric-cards" className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
+                    {cards.map((card) => (
+                      <MetricCard key={card.label} {...card} />
+                    ))}
+                  </div>
+                ) : (
+                  <EmptyState
+                    title="No metrics for this site yet"
+                    hint="Raster statistics have not been seeded, so there is nothing to compute from."
                   />
                 )}
+
+                {activeTab === 'report' ? (
+                  <div data-tour="report-panel">
+                    <Suspense fallback={<Spinner label="Loading report builder" />}>
+                      <ReportPanel site={site} />
+                    </Suspense>
+                  </div>
+                ) : activeTab === 'satellite' ? (
+                  <div className="space-y-6">
+                    <SatelliteUploader site={site} />
+                    <SatelliteGallery site={site} />
+                  </div>
+                ) : activeTab === 'field' ? (
+                  <div data-tour="field-panel" className="space-y-6">
+                    <GeotagUploader site={site} />
+                    <GeotagGallery site={site} />
+                  </div>
+                ) : activeTab === 'change' ? (
+                  <div className="space-y-6">
+                    <div data-tour="change-banner"><ChangeDetectionBanner metrics={metrics} /></div>
+                    <BeforeAfterComparison metrics={metrics} satellite={satelliteQuery.data ?? []} site={site} />
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {layers.changeDetection && <ChangeDetectionBanner metrics={metrics} />}
+                    {rastersQuery.isLoading ? (
+                      <Spinner label="Loading map layers" />
+                    ) : (
+                      <InteractiveMap
+                        site={site}
+                        rasters={rastersQuery.data ?? []}
+                        geotagged={geotagQuery.data ?? []}
+                        baseLayer={baseLayer}
+                        onSelectBaseLayer={setBaseLayer}
+                        layers={layers}
+                        onLayersChange={patchLayers}
+                      />
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Soil & Hydrology Risk Category */}
+            {(showHeading || workspaceCategory === 'soil_climate') && (
+              <div className="space-y-8 pt-4">
+                {!showHeading && (
+                  <SoilErosionSimulator
+                    site={site}
+                    metrics={metrics}
+                  />
+                )}
+
+                {!showHeading && (
+                  <ClimateStressNormalizer
+                    site={site}
+                    metrics={metrics}
+                  />
+                )}
+
+                {!showHeading && (
+                  <CropWaterRequirementCard
+                    site={site}
+                    metrics={metrics ?? null}
+                  />
+                )}
+
+                {!showHeading && (
+                  <InterventionImpactTool
+                    geotagged={geotagQuery.data ?? []}
+                    metrics={metrics}
+                  />
+                )}
+
+                <LulcTransitionMatrix
+                  metrics={metrics}
+                />
+
+                <AnalyticsCharts
+                  slug={site.slug}
+                  category={
+                    activeTab === 'vegetation'
+                      ? 'vegetation'
+                      : activeTab === 'water'
+                      ? 'water'
+                      : 'overview'
+                  }
+                />
               </div>
             )}
 
-            <div className="space-y-8">
-              <SoilErosionSimulator
-                site={site}
-                metrics={metrics}
-              />
+            {/* AI Smart Planning Category */}
+            {(showHeading || workspaceCategory === 'smart_planning') && (
+              <div className="space-y-8 pt-4">
+                {!showHeading && (
+                  <SmartInterventionRecommender
+                    site={site}
+                    metrics={metrics}
+                  />
+                )}
 
-              <ClimateStressNormalizer
-                site={site}
-                metrics={metrics}
-              />
+                <AIInsights
+                  siteId={site.id}
+                  site={site}
+                  metrics={metrics}
+                  geotagged={geotagQuery.data ?? []}
+                  rasters={rastersQuery.data ?? []}
+                  satelliteScenes={satelliteQuery.data ?? []}
+                />
 
-              <SmartInterventionRecommender
-                site={site}
-                metrics={metrics}
-              />
+                <SiteComparisonDashboard
+                  sites={sitesQuery.data ?? []}
+                  activeMetrics={metrics}
+                />
 
-              <MobileFieldSurveyPortal
-                site={site}
-              />
+                <DataSources site={site} />
+              </div>
+            )}
 
-              <InterventionImpactTool
-                geotagged={geotagQuery.data ?? []}
-                metrics={metrics}
-              />
-
-              <LulcTransitionMatrix
-                metrics={metrics}
-              />
-
-              <AnalyticsCharts
-                slug={site.slug}
-                category={
-                  activeTab === 'vegetation'
-                    ? 'vegetation'
-                    : activeTab === 'water'
-                    ? 'water'
-                    : 'overview'
-                }
-              />
-              <AIInsights siteId={site.id} />
-              
-              <SiteComparisonDashboard
-                sites={sitesQuery.data ?? []}
-                activeMetrics={metrics}
-              />
-
-              <DataSources site={site} />
-            </div>
-
+            {/* Direct GeoTIFF Uploader Modal */}
             <DirectRasterUploader
               siteId={site.id}
               isOpen={uploaderOpen}
               onClose={() => setUploaderOpen(false)}
             />
+
+            {/* Separate Mobile Field Survey Portal Modal Popup */}
+            {mobilePortalOpen && (
+              <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+                <div className="relative w-full max-w-lg my-8">
+                  <MobileFieldSurveyPortal
+                    site={site}
+                    onClose={() => setMobilePortalOpen(false)}
+                  />
+                </div>
+              </div>
+            )}
           </>
         )}
       </div>

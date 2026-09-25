@@ -135,10 +135,61 @@ This log documents every file created/modified, algorithms implemented, and work
 * **Details**:
   - Touch-friendly quick submission panel for Gram Panchayat field officers to capture structure condition, water depth ($m$), field notes, and auto-geotagged GPS coordinates with instant satellite cross-validation feedback.
 
+### 22. Site Workspace UI Simplification & Mobile Survey Separation [MODIFIED]
+* **Working Principle**: Beginner-Friendly Workspace Focus Categories & Floating Mobile Survey Modal.
+* **Details**:
+  - Applied specifically to site workspace views (e.g. `/sites/saswad`), leaving the landing homepage (`showHeading=true`) completely untouched.
+  - Groups complex geospatial features into 3 intuitive, beginner-friendly focus tabs:
+    1. **🏆 Overview & Map**: Watershed Health Grade, Scientific Confidence Score, Metric Cards, Interactive Map & Point Inspector.
+    2. **⛰️ Soil & Hydrology Risk**: RUSLE Soil Erosion Simulator, Seasonal Climate Stress Normalizer, Intervention Impact Buffer Tool, LULC Matrix & Charts.
+    3. **🤖 AI Smart Planning**: AI Smart Intervention Recommender, Multi-Site Benchmark, AI Insights & Data Sources.
+  - Separates out the **Mobile Field Survey Portal** into an overlay modal popup triggered via quick action header/workspace buttons, preventing vertical clutter and enabling effortless field officer reporting.
+  - Auto-resets focus category to `overview` when running guided tour animations (`applyTourStep`).
+
+### 23. 2023 vs 2026 Multitemporal Satellite Imagery Integration [MODIFIED]
+* **Working Principle**: Direct 2023 vs 2026 Satellite Scene Binding for Change Detection Slider & Satellite Gallery.
+* **Details**:
+  - Bound 2023 and 2026 Sentinel-2 L2A satellite scene records into `public.satellite_images` in `supabase/seed/saswad.sql`.
+  - Updated `BeforeAfterComparison.tsx` and `api.ts` to directly use the 2023 baseline and 2026 current multi-spectral satellite scenes in the interactive drag slider comparison (2023 on left, 2026 on right).
+  - Ensures the change detection slider dynamically loads genuine 2023 & 2026 satellite imagery instead of fallback illustrations.
+
+### 24. Change Detection Slider Image Recentering [MODIFIED]
+* **Working Principle**: Restored Widescreen Outer Container (`w-full`) + Centered Image Focal Point (`object-cover object-center`).
+* **Details**:
+  - Restored the original full-width widescreen layout container (`w-full`, 16:9 aspect ratio) as requested.
+  - Applied `object-cover object-center` positioning to both `before` and `after` satellite images so they are centered in the slider viewport without side displacement.
+
+### 25. Multilingual Audio Voice Summary Generator & TTS Component [NEW]
+* **Working Principle**: Browser Web Speech API (`SpeechSynthesisUtterance`) with dynamic multi-metric script synthesis in English, Marathi, and Hindi.
+* **Details**:
+  - Created [`src/features/insights/multilingualSummary.ts`](file:///c:/Projects/Jal-Drishti/src/features/insights/multilingualSummary.ts): Generates audio scripts and key action points in English (`en-IN`), Marathi (`mr-IN`), and Hindi (`hi-IN`) dynamically using computed site metrics (Health Grade, Star Rating, Vegetation, Surface Water Retention, and Action Items).
+  - Created [`src/components/analytics/MultilingualAudioSummary.tsx`](file:///c:/Projects/Jal-Drishti/src/components/analytics/MultilingualAudioSummary.tsx): Provides an interactive UI with language tab toggles, Play/Pause/Stop controls, an animated equalizer visualizer, speech rate buttons ($0.85x, 1.0x, 1.25x$), and line-by-line transcript highlight box.
+  - Mounted inside [`src/components/analytics/AnalyticsDashboard.tsx`](file:///c:/Projects/Jal-Drishti/src/components/analytics/AnalyticsDashboard.tsx) under the **Overview & Map** focus category.
+
+### 26. Crop Water Requirement & Agricultural Stress Forecaster ($ET_o$ Engine) [NEW]
+* **Working Principle**: Hargreaves Penman-Monteith Reference Evapotranspiration ($ET_o$) & Crop Coefficient ($K_c$) Agricultural Water Deficit Calculator.
+* **Details**:
+  - Created [`src/features/analytics/evapotranspirationEngine.ts`](file:///c:/Projects/Jal-Drishti/src/features/analytics/evapotranspirationEngine.ts): Computes reference evapotranspiration ($ET_o$ in $mm/day$) based on solar radiation $R_a$ at latitude $18.423^\circ N$ and air temperatures. Evaluates Crop Evapotranspiration ($ET_c = K_c \times ET_o$) across Saswad crop patterns (Jowar, Onion, Custard Apple, Sugarcane) and computes Net Irrigation Deficit & Agricultural Stress Index ($ASI\%$).
+  - Created [`src/components/analytics/CropWaterRequirementCard.tsx`](file:///c:/Projects/Jal-Drishti/src/components/analytics/CropWaterRequirementCard.tsx): Interactive UI with Reference $ET_o$ gauge, monthly demand breakdown, irrigation deficit gap ($Lakh\text{ Liters}$), crop-by-crop water table, micro-drip irrigation savings calculator, and interactive temperature/monsoon rainfall climate simulator.
+  - Mounted inside [`src/components/analytics/AnalyticsDashboard.tsx`](file:///c:/Projects/Jal-Drishti/src/components/analytics/AnalyticsDashboard.tsx) under the **⛰️ Soil & Hydrology Risk** focus tab.
+
+### 27. Homepage vs Site Dashboard Advanced Component Separation [MODIFIED]
+* **Working Principle**: Clean Landing Page UI scoping (`showHeading = true` vs `showHeading = false`).
+* **Details**:
+  - Removed the 7 requested advanced analytics tools from the main landing homepage (`/`) to ensure the homepage remains minimal, fast, and un-crowded.
+  - Preserved all 7 tools strictly inside specific site workspace dashboards (e.g. `/sites/saswad`, where `showHeading = false`):
+    1. AI Smart Intervention Recommender (`SmartInterventionRecommender`)
+    2. Intervention Structure Impact Buffer Tool (`InterventionImpactTool`)
+    3. Seasonal Rainfall & Climate Stress Normalizer (`ClimateStressNormalizer`)
+    4. Soil Erosion Risk & Runoff Simulator (`SoilErosionSimulator`)
+    5. Automated Field-Photo & Satellite Validation (`PhotoSatelliteValidationCard`)
+    6. Multilingual AI Voice Summary (`MultilingualAudioSummary`)
+    7. Crop Water Requirement & ETo Forecaster (`CropWaterRequirementCard`)
+
 ---
 
 ## 🧪 Verification & Status
-- **Build Status**: Verified with TypeScript & Vite compiler (`npm run build`).
+- **Build Status**: Verified with TypeScript & Vite compiler (`npm run build`) — `EXIT CODE 0`.
 - **Linter Status**: Verified with oxlint (`0 warnings, 0 errors`).
 - **Database Test Suite**: Verified with `npm run db:verify` (`ALL CHECKS PASSED`).
 - **Data Integrity**: Uses Postgres computed metrics (`site_metrics_view`) — zero hardcoded numbers.
