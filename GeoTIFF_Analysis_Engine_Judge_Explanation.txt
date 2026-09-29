@@ -1,0 +1,113 @@
+================================================================================
+JAL-DRISHTI: GEOTIFF SATELLITE ANALYSIS ENGINE & JUDGES PRESENTATION GUIDE
+================================================================================
+
+1. 30-SECOND ELEVATOR PITCH (START WITH THIS)
+--------------------------------------------------------------------------------
+"Jal-Drishti’s Analysis Engine is a real-time geospatial & evidence-validation 
+system. Instead of forcing planners to manually process data in complex GIS 
+software like QGIS, our engine calculates satellite vegetation and water metrics 
+directly in the browser and cross-checks them with field survey photos to output 
+an automated Watershed Health Report Card."
+
+
+2. HOW THE ANALYSIS ENGINE WORKS IN 3 EASY STEPS
+--------------------------------------------------------------------------------
+Step 1: Satellite Spectral Pixel Math (NDVI & NDWI)
+  "We take 10-meter resolution Sentinel-2 satellite imagery. By analyzing 
+  different light bands—specifically Near-Infrared, Red, and Green light—our 
+  engine calculates pixel-by-pixel indices:
+    - NDVI (Vegetation Index): Identifies green canopy cover and plant health.
+    - NDWI (Water Index): Identifies surface water bodies and reservoir storage."
+
+Step 2: Ground-Truth Cross-Validation (Field Photo <-> Satellite)
+  "When a field officer takes a geotagged photo on-site, our Computer Vision 
+  algorithm extracts visual features (green ratio, water reflectance, soil erosion). 
+  It then checks the exact GPS coordinate against the underlying satellite raster 
+  to confirm whether ground reality agrees with satellite predictions."
+
+Step 3: Scientific Decision Support (ETo, RUSLE & Health Card)
+  "Finally, the engine feeds these measurements into scientific models:
+    - RUSLE Model: Estimates topsoil erosion hazard (tons/ha/year).
+    - ETo Engine: Calculates crop water requirements and drought stress.
+    - Outcome: Synthesizes everything into a Watershed Health Grade (e.g., Grade A, 
+      4.5 Stars) and recommends target GPS points for building check dams."
+
+
+3. THE WINNING POINT (THE "MIC DROP" MOMENT)
+--------------------------------------------------------------------------------
+"Most student projects show fixed static numbers or invented claims. In Jal-Drishti, 
+ZERO numbers are hardcoded. Every single metric, confidence score, and trend card 
+is dynamically computed from raw satellite pixels and database views."
+
+
+================================================================================
+GEOTIFF SATELLITE ANALYSIS ENGINE: DETAILED & SIMPLE BREAKDOWN
+================================================================================
+
+WHAT IS A GEOTIFF?
+  "Think of a standard JPEG or PNG photo—it only stores Red, Green, and Blue 
+  colors. A GeoTIFF is a high-tech satellite image. Every single pixel in a 
+  GeoTIFF knows its exact GPS location on Earth and contains invisible light data 
+  (like Near-Infrared light) captured by satellites in space."
+
+HOW JAL-DRISHTI ANALYZES GEOTIFFS (STEP-BY-STEP):
+Our system processes raw satellite files directly inside the web browser using 
+JavaScript (geotiff.js) without needing heavy server software like QGIS or Python.
+
+Step 1: Extracting Light Bands
+  Satellite cameras capture different wavelengths (bands) of light reflected 
+  from Earth:
+    - Band 4 (Red Light): Plants absorb red light for photosynthesis.
+    - Band 8 (Near-Infrared / NIR): Healthy leaf cells strongly reflect NIR light.
+    - Band 3 (Green Light): Water bodies reflect green light.
+  Our engine opens the uploaded .tif file and extracts these raw light values 
+  into high-speed numerical arrays (Float32Array).
+
+Step 2: Running Spectral Formulas (NDVI & NDWI)
+  For every single pixel in the satellite scene, the engine calculates two 
+  scientific indices:
+    1. NDVI (Vegetation Density Index):
+       NDVI = (Near Infrared - Red) / (Near Infrared + Red)
+       * Acts like a health checkup for plants.
+       * High Score (+0.4 to +0.8) = Dense green crops or healthy forest.
+       * Low Score (0.0 to +0.2) = Bare soil or dry earth.
+
+    2. NDWI (Surface Water Index):
+       NDWI = (Green - Near Infrared) / (Green + Near Infrared)
+       * Acts like a water detector.
+       * Positive Score (>0) = Open surface water (ponds, check dams, lakes).
+
+Step 3: Precise Area Calculation (Hectares & km²)
+  - Sentinel-2 satellite data has a 10m x 10m spatial resolution.
+  - This means 1 pixel = 100 square meters (0.01 hectares).
+  - The engine counts all pixels matching vegetation or water, multiplies by 
+    100 m², and outputs the exact area in Hectares (ha) and Square Kilometers (km²).
+
+
+WHY THIS IS A GAME-CHANGER:
+1. Browser-Based Geoprocessing: Planners don't need expensive GIS desktop software. 
+   They drag-and-drop a raw .tif file, assign band numbers, and see instant 
+   analytics right inside their browser.
+2. Multi-Sensor Support: Works with Sentinel-2, Landsat-8/9, and single-band 
+   ESA WorldCover / Dynamic World land cover maps.
+3. Zero Hardcoded Numbers: Every vegetation percentage, water retention metric, 
+   and change slider image is calculated dynamically from real pixel data.
+
+
+================================================================================
+QUICK Q&A CHEAT-SHEET FOR JUDGES
+================================================================================
+Q: "Do you need QGIS or Python running on a server?"
+A: "No! We built client-side GeoTIFF parsing using geotiff.js and WebAssembly 
+   Postgres (PGlite), making it 100% browser-executable and cost-effective."
+
+Q: "How do you handle confidence or uncertainty?"
+A: "We compute a Scientific Confidence Score based on multi-source evidence 
+   convergence—combining satellite pass counts, field photo GPS alignments, 
+   and seasonal cross-checks."
+
+Q: "What problem does this solve for Gram Panchayats?"
+A: "It replaces time-consuming manual field surveys with checkable, scientifically 
+   validated evidence for faster project approval and monitoring."
+================================================================================
